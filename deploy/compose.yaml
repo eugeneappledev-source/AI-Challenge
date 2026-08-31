@@ -1,0 +1,36 @@
+services:
+  api:
+    build:
+      context: ../backend
+    env_file:
+      - ../.env
+    restart: unless-stopped
+    expose:
+      - "8080"
+    networks:
+      - app-network
+
+  caddy:
+    image: caddy:2.10-alpine
+    environment:
+      SERVER_ADDRESS: ${SERVER_ADDRESS:-http://localhost}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: unless-stopped
+    depends_on:
+      - api
+    networks:
+      - app-network
+
+networks:
+  app-network:
+
+volumes:
+  caddy_data:
+  caddy_config:

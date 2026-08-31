@@ -1,0 +1,4 @@
+{$SERVER_ADDRESS:http://localhost} {
+	encode zstd gzip
+	reverse_proxy api:8080
+}

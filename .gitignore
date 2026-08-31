@@ -1,0 +1,14 @@
+.DS_Store
+.env
+*.local
+
+# Go
+backend/bin/
+backend/coverage.out
+
+# Xcode
+DerivedData/
+*.xcuserstate
+xcuserdata/
+ios/AIChallenge.xcodeproj/project.xcworkspace/xcuserdata/
+ios/AIChallenge.xcodeproj/xcuserdata/
