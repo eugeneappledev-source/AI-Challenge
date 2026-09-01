@@ -1,72 +1,103 @@
 # AI Challenge
 
-Учебное приложение, которое отправляет сообщение в облачную LLM через API и показывает ответ в iOS-интерфейсе.
+iOS-чат, который отправляет запрос в облачную LLM через собственный Go backend и показывает ответ в SwiftUI-интерфейсе.
 
-Пользовательский DeepSeek API key хранится только на backend. В iOS-приложение он не попадает.
+**Результат задания:** пользователь вводит сообщение в приложении, backend передаёт его в DeepSeek API, а полученный ответ возвращается и отображается на экране.
 
-## Архитектура
+[![Backend CI](https://github.com/eugeneappledev-source/AI-Challenge/actions/workflows/backend.yml/badge.svg)](https://github.com/eugeneappledev-source/AI-Challenge/actions/workflows/backend.yml)
+
+Живой health endpoint: [https://176-53-173-246.sslip.io/health](https://176-53-173-246.sslip.io/health)
+
+## Что реализовано
+
+- нативный iOS-клиент на SwiftUI;
+- слоистая архитектура `Domain / Data / Presentation`;
+- Go REST API с endpoint `POST /v1/chat`;
+- интеграция с облачной моделью `deepseek-v4-flash`;
+- DeepSeek API key хранится только на сервере;
+- авторизация клиентских запросов через Bearer token;
+- деплой на VPS в Docker Compose;
+- HTTPS и reverse proxy через Caddy;
+- unit-тесты backend и iOS;
+- GitHub Actions для backend.
+
+## Как это работает
 
 ```mermaid
 flowchart LR
-    IOS["SwiftUI iOS app"] -->|"POST /v1/chat over HTTPS"| Caddy["Caddy on VPS"]
+    App["iOS · SwiftUI"] -->|"POST /v1/chat · HTTPS"| Caddy["Caddy · VPS"]
     Caddy --> API["Go backend"]
-    API -->|"API key only on server"| DeepSeek["DeepSeek API"]
-    DeepSeek --> API
-    API --> IOS
+    API -->|"Server-side API key"| LLM["DeepSeek API"]
+    LLM --> API --> App
 ```
 
-### Backend
-
-```text
-backend/
-├── cmd/api/                 Composition root and server lifecycle
-└── internal/
-    ├── domain/              Domain models
-    ├── application/         Use cases and ports
-    ├── infrastructure/      DeepSeek REST client
-    ├── transport/http/      HTTP handlers and middleware
-    └── config/              Environment configuration
-```
-
-### iOS
-
-```text
-ios/AIChallenge/
-├── App/                     Composition root
-├── Core/                    Configuration and HTTP client
-├── Domain/                  Models, repository protocol, use case
-├── Data/                    DTO, API and repository implementation
-└── Features/Chat/           @Observable view model and SwiftUI views
-```
-
-Зависимости iOS направлены внутрь:
-
-```text
-ChatScreen → ChatViewModel → SendMessageUseCase
-           → ChatRepository protocol ← DefaultChatRepository
-                                      → ChatAPI → HTTPClient
-```
+DeepSeek API key никогда не передаётся в iOS-приложение и не хранится в репозитории.
 
 ## Стек
 
-- Go 1.27, стандартная библиотека, `net/http`;
-- DeepSeek Chat Completions REST API;
-- Docker Compose и Caddy;
-- Swift 6, SwiftUI, Observation, Swift Concurrency;
+### iOS
+
+- Swift 6;
+- SwiftUI;
+- Observation (`@Observable`);
+- Swift Concurrency;
+- URLSession;
 - iOS 17+;
-- XcodeGen;
-- Go Testing и Swift Testing;
-- GitHub Actions для backend.
+- XcodeGen и Swift Testing.
+
+### Backend и инфраструктура
+
+- Go 1.27 и `net/http`;
+- DeepSeek Chat Completions API;
+- Docker Compose;
+- Caddy;
+- Ubuntu VPS;
+- GitHub Actions.
+
+## Структура проекта
+
+```text
+AI-Challenge/
+├── backend/
+│   ├── cmd/api/                  # запуск HTTP-сервера
+│   └── internal/
+│       ├── domain/               # модели предметной области
+│       ├── application/          # сценарии использования
+│       ├── infrastructure/       # клиент DeepSeek API
+│       ├── transport/http/       # handlers и middleware
+│       └── config/               # конфигурация окружения
+├── ios/
+│   ├── AIChallenge/
+│   │   ├── App/                  # composition root
+│   │   ├── Core/                 # конфигурация и networking
+│   │   ├── Domain/               # модели, repository, use case
+│   │   ├── Data/                 # DTO, API и repository implementation
+│   │   └── Features/Chat/        # ViewModel и SwiftUI views
+│   └── AIChallengeTests/
+└── deploy/                       # Docker Compose и Caddy
+```
+
+Зависимости iOS направлены к доменному слою:
+
+```text
+ChatScreen → ChatViewModel → SendMessageUseCase
+           → ChatRepository ← DefaultChatRepository
+                            → ChatAPI → HTTPClient
+```
 
 ## API
 
-Проверка состояния не требует авторизации:
+### Проверка состояния
 
 ```http
 GET /health
 ```
 
-Запрос к модели:
+```json
+{"status":"ok"}
+```
+
+### Запрос к LLM
 
 ```http
 POST /v1/chat
@@ -77,8 +108,6 @@ Content-Type: application/json
   "message": "Объясни простыми словами, что такое LLM"
 }
 ```
-
-Ответ:
 
 ```json
 {
@@ -92,104 +121,29 @@ Content-Type: application/json
 }
 ```
 
-## Локальный запуск backend
+## Запуск
 
-Создайте конфигурацию, которая игнорируется Git:
+### Backend
 
 ```bash
 cp .env.example .env
-openssl rand -hex 32
+docker compose -f deploy/compose.yaml --env-file .env up -d --build
 ```
 
-Запишите DeepSeek API key и сгенерированный `APP_ACCESS_TOKEN` в `.env`, затем:
+В `.env` необходимо указать `DEEPSEEK_API_KEY`, `APP_ACCESS_TOKEN` и публичный адрес сервера.
 
-```bash
-cd backend
-set -a
-source ../.env
-set +a
-go run ./cmd/api
-```
-
-В другом терминале:
-
-```bash
-curl http://127.0.0.1:8080/health
-```
-
-```bash
-curl http://127.0.0.1:8080/v1/chat \
-  -H "Authorization: Bearer <APP_ACCESS_TOKEN>" \
-  -H "Content-Type: application/json" \
-  -d '{"message":"Привет! Объясни, что такое LLM."}'
-```
-
-## Запуск iOS
-
-Создайте локальную конфигурацию приложения:
+### iOS
 
 ```bash
 cd ios
 cp Config/Secrets.xcconfig.local.example Config/Secrets.xcconfig.local
-```
-
-Для локального backend оставьте:
-
-```xcconfig
-API_BASE_URL = http:/$()/127.0.0.1:8080
-APP_ACCESS_TOKEN = <тот же токен, что и в backend .env>
-```
-
-Сгенерируйте проект и откройте его:
-
-```bash
 xcodegen generate
 open AIChallenge.xcodeproj
 ```
 
-Файл `Secrets.xcconfig.local` игнорируется Git.
-
-## Деплой на VPS
-
-На сервере должны быть установлены Git, Docker Engine и Docker Compose plugin.
-
-```bash
-git clone https://github.com/eugeneappledev-source/AI-Challenge.git
-cd AI-Challenge
-cp .env.example .env
-nano .env
-docker compose -f deploy/compose.yaml --env-file .env up -d --build
-```
-
-До подключения домена используется:
-
-```env
-SERVER_ADDRESS=http://176.53.173.246
-```
-
-Проверка:
-
-```bash
-curl http://176.53.173.246/health
-```
-
-После настройки DNS замените значение на домен без схемы:
-
-```env
-SERVER_ADDRESS=api.example.com
-```
-
-и примените конфигурацию:
-
-```bash
-docker compose -f deploy/compose.yaml --env-file .env up -d
-```
-
-Caddy автоматически получит и будет обновлять HTTPS-сертификат.
+В `Secrets.xcconfig.local` указываются HTTPS-адрес backend и тот же `APP_ACCESS_TOKEN`.
 
 ## Проверки
-
-Backend:
 
 ```bash
 cd backend
@@ -197,11 +151,8 @@ go test ./...
 go vet ./...
 ```
 
-iOS:
-
 ```bash
 cd ios
-xcodegen generate
 xcodebuild \
   -project AIChallenge.xcodeproj \
   -scheme AIChallenge \
@@ -210,14 +161,6 @@ xcodebuild \
   build
 ```
 
-## Секреты
+## Безопасность
 
-Не добавляйте в Git:
-
-- `.env`;
-- `DEEPSEEK_API_KEY`;
-- `APP_ACCESS_TOKEN`;
-- `Secrets.xcconfig.local`;
-- приватные SSH-ключи.
-
-`APP_ACCESS_TOKEN` защищает учебный endpoint от случайного публичного использования, но токен внутри клиентского приложения не является полноценной пользовательской авторизацией. Для production-сервиса потребуется отдельная схема аутентификации и rate limiting.
+`.env`, `Secrets.xcconfig.local`, API keys, access tokens и приватные SSH-ключи исключены из Git. Публичный backend работает только через HTTPS; DeepSeek API key используется исключительно на VPS.
