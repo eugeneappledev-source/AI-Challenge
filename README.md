@@ -1,166 +1,82 @@
-# AI Challenge
+# AI Advent Challenge #9
 
-iOS-чат, который отправляет запрос в облачную LLM через собственный Go backend и показывает ответ в SwiftUI-интерфейсе.
-
-**Результат задания:** пользователь вводит сообщение в приложении, backend передаёт его в DeepSeek API, а полученный ответ возвращается и отображается на экране.
+### Практический путь от первого запроса к LLM до полноценного AI-продукта
 
 [![Backend CI](https://github.com/eugeneappledev-source/AI-Challenge/actions/workflows/backend.yml/badge.svg)](https://github.com/eugeneappledev-source/AI-Challenge/actions/workflows/backend.yml)
+![Swift](https://img.shields.io/badge/Swift-6.0-F05138?logo=swift&logoColor=white)
+![Go](https://img.shields.io/badge/Go-1.27-00ADD8?logo=go&logoColor=white)
+![DeepSeek](https://img.shields.io/badge/LLM-DeepSeek-4D6BFE)
 
-Живой health endpoint: [https://176-53-173-246.sslip.io/health](https://176-53-173-246.sslip.io/health)
+Этот репозиторий — мой практический дневник **AI Advent Challenge, поток 9**. Здесь одно приложение постепенно развивается вместе с заданиями курса: от минимальной интеграции с облачной моделью до более сложной архитектуры, инфраструктуры и пользовательских сценариев.
 
-## Что реализовано
+## Прогресс
 
-- нативный iOS-клиент на SwiftUI;
-- слоистая архитектура `Domain / Data / Presentation`;
-- Go REST API с endpoint `POST /v1/chat`;
-- интеграция с облачной моделью `deepseek-v4-flash`;
-- DeepSeek API key хранится только на сервере;
-- авторизация клиентских запросов через Bearer token;
-- деплой на VPS в Docker Compose;
-- HTTPS и reverse proxy через Caddy;
-- unit-тесты backend и iOS;
-- GitHub Actions для backend.
+| Неделя | День | Задание | Результат | Статус |
+|:---:|:---:|---|---|:---:|
+| 1 | [01](challenges/day-01/README.md) | Первый запрос к облачной LLM | SwiftUI + Go + DeepSeek + VPS | ✅ |
 
-## Как это работает
+Подробная навигация по выполненным заданиям находится в [дневнике челленджа](challenges/README.md).
+
+## Текущая версия проекта
+
+Нативное iOS-приложение отправляет сообщение в собственный Go backend. Сервер обращается к DeepSeek API и возвращает ответ, который отображается в SwiftUI-интерфейсе.
+
+Проект уже развёрнут на VPS и доступен по HTTPS.
+
+**Live health check:** [https://176-53-173-246.sslip.io/health](https://176-53-173-246.sslip.io/health)
+
+## Архитектура
 
 ```mermaid
 flowchart LR
-    App["iOS · SwiftUI"] -->|"POST /v1/chat · HTTPS"| Caddy["Caddy · VPS"]
-    Caddy --> API["Go backend"]
-    API -->|"Server-side API key"| LLM["DeepSeek API"]
+    User["Пользователь"] --> App["iOS · SwiftUI"]
+    App -->|"HTTPS · REST"| Gateway["Caddy · VPS"]
+    Gateway --> API["Go backend"]
+    API --> LLM["DeepSeek API"]
     LLM --> API --> App
 ```
 
-DeepSeek API key никогда не передаётся в iOS-приложение и не хранится в репозитории.
-
-## Стек
-
-### iOS
-
-- Swift 6;
-- SwiftUI;
-- Observation (`@Observable`);
-- Swift Concurrency;
-- URLSession;
-- iOS 17+;
-- XcodeGen и Swift Testing.
-
-### Backend и инфраструктура
-
-- Go 1.27 и `net/http`;
-- DeepSeek Chat Completions API;
-- Docker Compose;
-- Caddy;
-- Ubuntu VPS;
-- GitHub Actions.
-
-## Структура проекта
+## Структура
 
 ```text
 AI-Challenge/
-├── backend/
-│   ├── cmd/api/                  # запуск HTTP-сервера
-│   └── internal/
-│       ├── domain/               # модели предметной области
-│       ├── application/          # сценарии использования
-│       ├── infrastructure/       # клиент DeepSeek API
-│       ├── transport/http/       # handlers и middleware
-│       └── config/               # конфигурация окружения
-├── ios/
-│   ├── AIChallenge/
-│   │   ├── App/                  # composition root
-│   │   ├── Core/                 # конфигурация и networking
-│   │   ├── Domain/               # модели, repository, use case
-│   │   ├── Data/                 # DTO, API и repository implementation
-│   │   └── Features/Chat/        # ViewModel и SwiftUI views
-│   └── AIChallengeTests/
-└── deploy/                       # Docker Compose и Caddy
+├── ios/                         # iOS-приложение
+├── backend/                     # Go REST API
+├── deploy/                      # Docker Compose и Caddy
+├── challenges/                  # дневник выполненных заданий
+│   └── day-01/                  # описание и результат первого дня
+└── .github/workflows/           # автоматические проверки
 ```
 
-Зависимости iOS направлены к доменному слою:
+Рабочий код остаётся в стабильных каталогах `ios`, `backend` и `deploy`, а каждый новый день получает отдельную страницу в `challenges`. Благодаря этому проект может последовательно развиваться без копирования одинаковых исходников.
 
-```text
-ChatScreen → ChatViewModel → SendMessageUseCase
-           → ChatRepository ← DefaultChatRepository
-                            → ChatAPI → HTTPClient
-```
-
-## API
-
-### Проверка состояния
-
-```http
-GET /health
-```
-
-```json
-{"status":"ok"}
-```
-
-### Запрос к LLM
-
-```http
-POST /v1/chat
-Authorization: Bearer <APP_ACCESS_TOKEN>
-Content-Type: application/json
-
-{
-  "message": "Объясни простыми словами, что такое LLM"
-}
-```
-
-```json
-{
-  "answer": "LLM — это большая языковая модель...",
-  "model": "deepseek-v4-flash",
-  "usage": {
-    "promptTokens": 24,
-    "completionTokens": 42,
-    "totalTokens": 66
-  }
-}
-```
-
-## Запуск
-
-### Backend
-
-```bash
-cp .env.example .env
-docker compose -f deploy/compose.yaml --env-file .env up -d --build
-```
-
-В `.env` необходимо указать `DEEPSEEK_API_KEY`, `APP_ACCESS_TOKEN` и публичный адрес сервера.
+## Технологии
 
 ### iOS
 
-```bash
-cd ios
-cp Config/Secrets.xcconfig.local.example Config/Secrets.xcconfig.local
-xcodegen generate
-open AIChallenge.xcodeproj
-```
+- Swift 6 и SwiftUI;
+- Observation и Swift Concurrency;
+- URLSession;
+- слои `Domain / Data / Presentation`;
+- Swift Testing;
+- iOS 17+.
 
-В `Secrets.xcconfig.local` указываются HTTPS-адрес backend и тот же `APP_ACCESS_TOKEN`.
+### Backend и инфраструктура
 
-## Проверки
+- Go и `net/http`;
+- DeepSeek Chat Completions API;
+- Docker Compose;
+- Caddy и HTTPS;
+- Ubuntu VPS;
+- GitHub Actions.
 
-```bash
-cd backend
-go test ./...
-go vet ./...
-```
+## Задания
 
-```bash
-cd ios
-xcodebuild \
-  -project AIChallenge.xcodeproj \
-  -scheme AIChallenge \
-  -destination 'generic/platform=iOS Simulator' \
-  CODE_SIGNING_ALLOWED=NO \
-  build
-```
+Каждая завершённая работа получает:
 
-## Безопасность
+- отдельное описание в `challenges/day-XX`;
+- ссылки на относящиеся к заданию части проекта;
+- зафиксированный результат и способ проверки;
+- Git-тег, сохраняющий состояние проекта на момент сдачи.
 
-`.env`, `Secrets.xcconfig.local`, API keys, access tokens и приватные SSH-ключи исключены из Git. Публичный backend работает только через HTTPS; DeepSeek API key используется исключительно на VPS.
+Первое решение зафиксировано тегом [`day-01`](https://github.com/eugeneappledev-source/AI-Challenge/tree/day-01).
