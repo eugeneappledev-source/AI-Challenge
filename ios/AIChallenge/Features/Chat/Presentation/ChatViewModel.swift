@@ -4,33 +4,37 @@ import Observation
 @MainActor
 @Observable
 final class ChatViewModel {
-    var input = ""
-    private(set) var messages: [ChatMessage] = []
+    var input = "Дай простой рецепт греческого салата."
+    var selectedMode: ResponseControlMode = .unrestricted
+    private(set) var comparison: ResponseComparison?
     private(set) var isSending = false
     var errorMessage: String?
 
-    private let sendMessage: SendMessageUseCase
+    private let compareResponses: CompareResponsesUseCase
 
-    init(sendMessage: SendMessageUseCase) {
-        self.sendMessage = sendMessage
+    init(compareResponses: CompareResponsesUseCase) {
+        self.compareResponses = compareResponses
     }
 
     var canSend: Bool {
         !input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isSending
     }
 
-    func send() async {
+    var selectedReply: ChatReply? {
+        comparison?.reply(for: selectedMode)
+    }
+
+    func compare() async {
         let message = input.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !message.isEmpty, !isSending else { return }
 
-        input = ""
-        messages.append(ChatMessage(role: .user, text: message))
         isSending = true
+        errorMessage = nil
         defer { isSending = false }
 
         do {
-            let reply = try await sendMessage.execute(message: message)
-            messages.append(ChatMessage(role: .assistant, text: reply.answer))
+            comparison = try await compareResponses.execute(message: message)
+            selectedMode = .unrestricted
         } catch {
             errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }

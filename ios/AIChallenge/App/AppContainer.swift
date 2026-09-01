@@ -12,6 +12,7 @@ enum AppContainer {
         )
         let repository = DefaultChatRepository(api: api)
         let sendMessage = SendMessageUseCase(repository: repository)
-        return ChatViewModel(sendMessage: sendMessage)
+        let compareResponses = CompareResponsesUseCase(sendMessage: sendMessage)
+        return ChatViewModel(compareResponses: compareResponses)
     }
 }

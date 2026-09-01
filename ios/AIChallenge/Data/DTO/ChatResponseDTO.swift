@@ -7,5 +7,7 @@ struct ChatResponseDTO: Decodable, Sendable {
 
     let answer: String
     let model: String
+    let mode: ResponseControlMode?
+    let finishReason: String?
     let usage: Usage
 }

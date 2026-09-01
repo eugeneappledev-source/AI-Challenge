@@ -5,7 +5,7 @@ struct SendMessageUseCase: Sendable {
         self.repository = repository
     }
 
-    func execute(message: String) async throws -> ChatReply {
-        try await repository.send(message: message)
+    func execute(message: String, mode: ResponseControlMode) async throws -> ChatReply {
+        try await repository.send(message: message, mode: mode)
     }
 }

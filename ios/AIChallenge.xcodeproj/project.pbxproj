@@ -12,6 +12,7 @@
 		45BB32598B3F35B415642C09 /* DefaultChatRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF627C9A5B5F2D3ECB9AB9B9 /* DefaultChatRepository.swift */; };
 		60DDE5D2C9C3116E28B9047C /* ChatAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD84298F8EFDD5862E47D2CF /* ChatAPI.swift */; };
 		612DA54276720C064FA50075 /* MessageBubble.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CA9058D4B72C152E8B04242 /* MessageBubble.swift */; };
+		6331BD4B0B3E9ED4A2992797 /* CompareResponsesUseCase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B537704FA489ED5C4C0DDBE /* CompareResponsesUseCase.swift */; };
 		80F69D38B9659875BD666AD0 /* ChatViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C42590EBD75F7D45004C595 /* ChatViewModel.swift */; };
 		831C043920DC745D1DC52A52 /* HTTPClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6872C26C340A28BBC703E14 /* HTTPClient.swift */; };
 		9EBFBBD804C25BD5145B6435 /* AppConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CB0BB417624CBE49621AB3F /* AppConfiguration.swift */; };
@@ -52,6 +53,7 @@
 		5CB0BB417624CBE49621AB3F /* AppConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfiguration.swift; sourceTree = "<group>"; };
 		6C56BC58FE020F7466015BE4 /* App.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = App.xcconfig; sourceTree = "<group>"; };
 		78D3A8A3317FC05C96705311 /* AIChallengeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIChallengeApp.swift; sourceTree = "<group>"; };
+		7B537704FA489ED5C4C0DDBE /* CompareResponsesUseCase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompareResponsesUseCase.swift; sourceTree = "<group>"; };
 		85F051EC7B6DFF233E3A765B /* ChatReply.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatReply.swift; sourceTree = "<group>"; };
 		9653D39E22A786D8EEE0FF23 /* AIChallengeTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = AIChallengeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		9C42590EBD75F7D45004C595 /* ChatViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatViewModel.swift; sourceTree = "<group>"; };
@@ -192,6 +194,7 @@
 		CB81AF83D7E281F9E37B3E8B /* UseCases */ = {
 			isa = PBXGroup;
 			children = (
+				7B537704FA489ED5C4C0DDBE /* CompareResponsesUseCase.swift */,
 				21D930733FCB9A5F7108684C /* SendMessageUseCase.swift */,
 			);
 			path = UseCases;
@@ -349,6 +352,7 @@
 				DA775C78ACEEF210ECFEDA4A /* ChatResponseDTO.swift in Sources */,
 				E64F1F3E0D61FA33B7342A69 /* ChatScreen.swift in Sources */,
 				80F69D38B9659875BD666AD0 /* ChatViewModel.swift in Sources */,
+				6331BD4B0B3E9ED4A2992797 /* CompareResponsesUseCase.swift in Sources */,
 				45BB32598B3F35B415642C09 /* DefaultChatRepository.swift in Sources */,
 				831C043920DC745D1DC52A52 /* HTTPClient.swift in Sources */,
 				612DA54276720C064FA50075 /* MessageBubble.swift in Sources */,

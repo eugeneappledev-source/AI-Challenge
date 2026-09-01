@@ -5,24 +5,25 @@ struct ChatScreen: View {
 
     var body: some View {
         NavigationStack {
-            Group {
-                if viewModel.messages.isEmpty {
-                    emptyState
-                } else {
-                    messages
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 20) {
+                    introduction
+
+                    MessageInputView(
+                        text: $viewModel.input,
+                        isSending: viewModel.isSending,
+                        canSend: viewModel.canSend
+                    ) {
+                        Task { await viewModel.compare() }
+                    }
+
+                    resultSection
                 }
+                .padding()
             }
             .background(Color(.systemGroupedBackground))
-            .navigationTitle("AI Challenge")
-            .safeAreaInset(edge: .bottom) {
-                MessageInputView(
-                    text: $viewModel.input,
-                    isSending: viewModel.isSending,
-                    canSend: viewModel.canSend
-                ) {
-                    Task { await viewModel.send() }
-                }
-            }
+            .navigationTitle("День 2")
+            .navigationBarTitleDisplayMode(.inline)
             .alert(
                 "Не удалось получить ответ",
                 isPresented: Binding(
@@ -39,41 +40,184 @@ struct ChatScreen: View {
         }
     }
 
-    private var emptyState: some View {
-        ContentUnavailableView {
-            Label("Спроси DeepSeek", systemImage: "sparkles")
-        } description: {
-            Text("Сообщение уйдёт через твой Go-backend на VPS, а ответ появится здесь.")
+    private var introduction: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("ФОРМАТ ОТВЕТА")
+                .font(.caption.weight(.bold))
+                .foregroundStyle(.tint)
+                .tracking(1.2)
+
+            Text("Один запрос.\nДва уровня контроля.")
+                .font(.largeTitle.bold())
+
+            Text("Пищевой ассистент отвечает только по теме еды. Сравни свободный ответ с результатом в заданном формате, ограниченной длины и с явным завершением.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.vertical, 8)
+    }
+
+    @ViewBuilder
+    private var resultSection: some View {
+        if viewModel.isSending {
+            LoadingComparisonCard()
+        } else if let comparison = viewModel.comparison, let reply = viewModel.selectedReply {
+            VStack(alignment: .leading, spacing: 14) {
+                Text("Результаты")
+                    .font(.title2.bold())
+
+                Picker("Режим ответа", selection: $viewModel.selectedMode) {
+                    Text("Без контроля").tag(ResponseControlMode.unrestricted)
+                    Text("С контролем").tag(ResponseControlMode.controlled)
+                }
+                .pickerStyle(.segmented)
+
+                ComparisonResultCard(
+                    prompt: comparison.prompt,
+                    reply: reply
+                )
+                .id(viewModel.selectedMode)
+                .transition(.opacity.combined(with: .scale(scale: 0.98)))
+            }
+            .animation(.easeInOut(duration: 0.2), value: viewModel.selectedMode)
+        } else {
+            ContentUnavailableView {
+                Label("Готово к сравнению", systemImage: "rectangle.2.swap")
+            } description: {
+                Text("Задай вопрос о еде — приложение одновременно получит оба варианта ответа.")
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 28)
+        }
+    }
+}
+
+private struct LoadingComparisonCard: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("DeepSeek готовит два ответа")
+                .font(.headline)
+
+            ForEach(ResponseControlMode.allCases) { mode in
+                HStack(spacing: 12) {
+                    ProgressView()
+                    Text(mode.title)
+                    Spacer()
+                }
+            }
+        }
+        .padding(18)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+}
+
+private struct ComparisonResultCard: View {
+    let prompt: String
+    let reply: ChatReply
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                Label(reply.mode.title, systemImage: reply.mode.systemImage)
+                    .font(.headline)
+                Spacer()
+                Text(reply.model)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            ScrollView(.horizontal) {
+                HStack(spacing: 8) {
+                    ForEach(reply.mode.badges, id: \.self) { badge in
+                        Text(badge)
+                            .font(.caption.weight(.semibold))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .foregroundStyle(reply.mode.tint)
+                            .background(reply.mode.tint.opacity(0.12), in: Capsule())
+                    }
+                }
+            }
+            .scrollIndicators(.hidden)
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text("ИСХОДНЫЙ ЗАПРОС")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(.secondary)
+                Text(prompt)
+                    .font(.subheadline)
+            }
+
+            Divider()
+
+            Text(reply.answer)
+                .font(.system(.body, design: reply.mode == .controlled ? .monospaced : .default))
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            Divider()
+
+            HStack(spacing: 0) {
+                MetadataItem(title: "Ответ", value: "\(reply.completionTokens) токенов")
+                Divider().frame(height: 34)
+                MetadataItem(title: "Всего", value: "\(reply.totalTokens) токенов")
+                Divider().frame(height: 34)
+                MetadataItem(title: "Завершение", value: reply.finishReason ?? "—")
+            }
+        }
+        .padding(18)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+}
+
+private struct MetadataItem: View {
+    let title: String
+    let value: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(title)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.caption.weight(.semibold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 8)
+    }
+}
+
+private extension ResponseControlMode {
+    var title: String {
+        switch self {
+        case .unrestricted: "Без контроля"
+        case .controlled: "С контролем"
         }
     }
 
-    private var messages: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(spacing: 12) {
-                    ForEach(viewModel.messages) { message in
-                        MessageBubble(message: message)
-                            .id(message.id)
-                    }
+    var systemImage: String {
+        switch self {
+        case .unrestricted: "text.alignleft"
+        case .controlled: "slider.horizontal.3"
+        }
+    }
 
-                    if viewModel.isSending {
-                        HStack {
-                            ProgressView()
-                            Text("DeepSeek отвечает…")
-                                .foregroundStyle(.secondary)
-                            Spacer()
-                        }
-                        .padding(.horizontal)
-                    }
-                }
-                .padding(.vertical)
-            }
-            .onChange(of: viewModel.messages.count) {
-                guard let lastID = viewModel.messages.last?.id else { return }
-                withAnimation {
-                    proxy.scrollTo(lastID, anchor: .bottom)
-                }
-            }
+    var tint: Color {
+        switch self {
+        case .unrestricted: .blue
+        case .controlled: .purple
+        }
+    }
+
+    var badges: [String] {
+        switch self {
+        case .unrestricted:
+            ["Тема: еда", "Свободный формат", "Без лимита"]
+        case .controlled:
+            ["Тема: еда", "JSON", "≤ 80 слов", "Явное завершение"]
         }
     }
 }

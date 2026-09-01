@@ -7,30 +7,42 @@ struct MessageInputView: View {
     let onSend: () -> Void
 
     var body: some View {
-        HStack(alignment: .bottom, spacing: 12) {
-            TextField("Введите сообщение", text: $text, axis: .vertical)
+        VStack(alignment: .leading, spacing: 14) {
+            Label("Один запрос для двух режимов", systemImage: "text.bubble")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            TextField("Введите запрос", text: $text, axis: .vertical)
                 .lineLimit(1...5)
                 .textFieldStyle(.plain)
                 .padding(.horizontal, 14)
-                .padding(.vertical, 11)
-                .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 18))
-                .submitLabel(.send)
+                .padding(.vertical, 13)
+                .background(Color(.tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
+                .submitLabel(.go)
                 .onSubmit {
                     if canSend { onSend() }
                 }
 
             Button(action: onSend) {
-                Image(systemName: "arrow.up")
-                    .font(.headline.bold())
-                    .frame(width: 42, height: 42)
-                    .foregroundStyle(.white)
-                    .background(canSend ? Color.accentColor : Color.secondary, in: Circle())
+                HStack(spacing: 10) {
+                    if isSending {
+                        ProgressView()
+                            .tint(.white)
+                    } else {
+                        Image(systemName: "arrow.triangle.branch")
+                    }
+                    Text(isSending ? "Сравниваем…" : "Сравнить ответы")
+                        .fontWeight(.semibold)
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 48)
             }
+            .buttonStyle(.borderedProminent)
+            .buttonBorderShape(.roundedRectangle(radius: 14))
             .disabled(!canSend)
-            .accessibilityLabel(isSending ? "Отправка сообщения" : "Отправить сообщение")
+            .accessibilityLabel(isSending ? "Сравнение ответов" : "Сравнить ответы")
         }
-        .padding(.horizontal)
-        .padding(.vertical, 10)
-        .background(.ultraThinMaterial)
+        .padding(16)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 }

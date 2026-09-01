@@ -11,7 +11,7 @@ struct ChatAPI: Sendable {
         self.httpClient = httpClient
     }
 
-    func send(message: String) async throws -> ChatResponseDTO {
+    func send(message: String, mode: ResponseControlMode) async throws -> ChatResponseDTO {
         let endpoint = baseURL.appending(path: "v1/chat")
         var request = URLRequest(url: endpoint)
         request.httpMethod = "POST"
@@ -21,7 +21,7 @@ struct ChatAPI: Sendable {
         if !accessToken.isEmpty {
             request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
         }
-        request.httpBody = try JSONEncoder().encode(ChatRequestDTO(message: message))
+        request.httpBody = try JSONEncoder().encode(ChatRequestDTO(message: message, mode: mode))
 
         let (data, response) = try await httpClient.data(for: request)
         guard 200..<300 ~= response.statusCode else {

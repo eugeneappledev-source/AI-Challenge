@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/eugeneappledev-source/AI-Challenge/backend/internal/application"
 	"github.com/eugeneappledev-source/AI-Challenge/backend/internal/domain"
 )
 
@@ -17,8 +18,17 @@ type chatServiceStub struct {
 	err   error
 }
 
-func (s chatServiceStub) Send(_ context.Context, _ string) (domain.ChatReply, error) {
+func (s chatServiceStub) Send(_ context.Context, _ string, _ domain.ResponseMode) (domain.ChatReply, error) {
 	return s.reply, s.err
+}
+
+type chatServiceRecorder struct {
+	mode domain.ResponseMode
+}
+
+func (s *chatServiceRecorder) Send(_ context.Context, _ string, mode domain.ResponseMode) (domain.ChatReply, error) {
+	s.mode = mode
+	return domain.ChatReply{Answer: "Hello", Mode: mode}, nil
 }
 
 func TestHealthDoesNotRequireAuthentication(t *testing.T) {
@@ -58,6 +68,36 @@ func TestChatReturnsCompletion(t *testing.T) {
 	}
 	if !strings.Contains(response.Body.String(), `"answer":"Hello"`) {
 		t.Fatalf("unexpected response: %s", response.Body.String())
+	}
+}
+
+func TestChatForwardsControlledMode(t *testing.T) {
+	service := &chatServiceRecorder{}
+	handler := NewHandler(service, discardLogger(), "token")
+	request := httptest.NewRequest(http.MethodPost, "/v1/chat", strings.NewReader(`{"message":"Hi","mode":"controlled"}`))
+	request.Header.Set("Authorization", "Bearer token")
+	response := httptest.NewRecorder()
+
+	handler.Routes().ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", response.Code, response.Body.String())
+	}
+	if service.mode != domain.ResponseModeControlled {
+		t.Fatalf("expected controlled mode, got %q", service.mode)
+	}
+}
+
+func TestChatMapsInvalidModeError(t *testing.T) {
+	handler := NewHandler(chatServiceStub{err: application.ErrInvalidMode}, discardLogger(), "token")
+	request := httptest.NewRequest(http.MethodPost, "/v1/chat", strings.NewReader(`{"message":"Hi","mode":"creative"}`))
+	request.Header.Set("Authorization", "Bearer token")
+	response := httptest.NewRecorder()
+
+	handler.Routes().ServeHTTP(response, request)
+
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", response.Code, response.Body.String())
 	}
 }
 

@@ -17,7 +17,7 @@ import (
 const maxRequestBodyBytes = 32 << 10
 
 type ChatService interface {
-	Send(ctx context.Context, message string) (domain.ChatReply, error)
+	Send(ctx context.Context, message string, mode domain.ResponseMode) (domain.ChatReply, error)
 }
 
 type Handler struct {
@@ -46,7 +46,8 @@ func (h *Handler) health(response http.ResponseWriter, _ *http.Request) {
 }
 
 type chatRequest struct {
-	Message string `json:"message"`
+	Message string              `json:"message"`
+	Mode    domain.ResponseMode `json:"mode,omitempty"`
 }
 
 func (h *Handler) chat(response http.ResponseWriter, request *http.Request) {
@@ -64,13 +65,15 @@ func (h *Handler) chat(response http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	reply, err := h.chatService.Send(request.Context(), payload.Message)
+	reply, err := h.chatService.Send(request.Context(), payload.Message, payload.Mode)
 	if err != nil {
 		switch {
 		case errors.Is(err, application.ErrEmptyMessage):
 			writeAPIError(response, http.StatusBadRequest, "empty_message", "Message is required.")
 		case errors.Is(err, application.ErrMessageTooLong):
 			writeAPIError(response, http.StatusRequestEntityTooLarge, "message_too_long", "Message is too long.")
+		case errors.Is(err, application.ErrInvalidMode):
+			writeAPIError(response, http.StatusBadRequest, "invalid_mode", "Mode must be unrestricted or controlled.")
 		default:
 			h.logger.Error("chat completion failed", "error", err)
 			writeAPIError(response, http.StatusBadGateway, "upstream_error", "The language model is temporarily unavailable.")

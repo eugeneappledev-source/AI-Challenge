@@ -15,6 +15,17 @@ import (
 
 const maxErrorBodyBytes = 8 << 10
 
+const (
+	controlledMaxTokens   = 240
+	foodAgentInstruction  = `You are a food assistant. Answer only questions about food, cooking, recipes, ingredients, cuisines, kitchen techniques, and food safety. If a request is unrelated to food, do not discuss it or give additional advice. Use exactly this refusal: "Я отвечаю только на вопросы о еде и приготовлении. Пожалуйста, задайте вопрос по теме." Respond to food-related requests in the user's language.`
+	controlledInstruction = `Return the answer strictly as one valid JSON object with exactly these fields:
+{"status":"ok","answer":"string","ingredients":["string"],"steps":["string"]}
+The only allowed status values are "ok" and "out_of_scope".
+For a food-related request, use status "ok". Fill ingredients and steps only when they are relevant; otherwise use empty arrays.
+For an unrelated request, use status "out_of_scope", put the exact refusal from the food assistant policy in answer, and return empty ingredients and steps arrays.
+Use no more than 80 words across all text values. Do not wrap JSON in Markdown or add commentary. Finish immediately after the closing brace.`
+)
+
 type HTTPClient interface {
 	Do(request *http.Request) (*http.Response, error)
 }
@@ -36,10 +47,12 @@ func NewClient(config Config) *Client {
 }
 
 type chatCompletionRequest struct {
-	Model    string                  `json:"model"`
-	Messages []chatCompletionMessage `json:"messages"`
-	Thinking thinkingConfig          `json:"thinking"`
-	Stream   bool                    `json:"stream"`
+	Model          string                  `json:"model"`
+	Messages       []chatCompletionMessage `json:"messages"`
+	Thinking       thinkingConfig          `json:"thinking"`
+	ResponseFormat *responseFormat         `json:"response_format,omitempty"`
+	MaxTokens      int                     `json:"max_tokens,omitempty"`
+	Stream         bool                    `json:"stream"`
 }
 
 type chatCompletionMessage struct {
@@ -51,10 +64,15 @@ type thinkingConfig struct {
 	Type string `json:"type"`
 }
 
+type responseFormat struct {
+	Type string `json:"type"`
+}
+
 type chatCompletionResponse struct {
 	Model   string `json:"model"`
 	Choices []struct {
-		Message chatCompletionMessage `json:"message"`
+		Message      chatCompletionMessage `json:"message"`
+		FinishReason string                `json:"finish_reason"`
 	} `json:"choices"`
 	Usage struct {
 		PromptTokens     int `json:"prompt_tokens"`
@@ -63,15 +81,21 @@ type chatCompletionResponse struct {
 	} `json:"usage"`
 }
 
-func (c *Client) Complete(ctx context.Context, message string) (domain.ChatReply, error) {
+func (c *Client) Complete(ctx context.Context, completionRequest domain.CompletionRequest) (domain.ChatReply, error) {
+	systemPrompt := c.config.SystemPrompt + "\n\n" + foodAgentInstruction
 	payload := chatCompletionRequest{
-		Model: c.config.Model,
-		Messages: []chatCompletionMessage{
-			{Role: "system", Content: c.config.SystemPrompt},
-			{Role: "user", Content: message},
-		},
+		Model:    c.config.Model,
 		Thinking: thinkingConfig{Type: "disabled"},
 		Stream:   false,
+	}
+	if completionRequest.Mode == domain.ResponseModeControlled {
+		systemPrompt += "\n\n" + controlledInstruction
+		payload.ResponseFormat = &responseFormat{Type: "json_object"}
+		payload.MaxTokens = controlledMaxTokens
+	}
+	payload.Messages = []chatCompletionMessage{
+		{Role: "system", Content: systemPrompt},
+		{Role: "user", Content: completionRequest.Message},
 	}
 
 	body, err := json.Marshal(payload)
@@ -112,8 +136,10 @@ func (c *Client) Complete(ctx context.Context, message string) (domain.ChatReply
 	}
 
 	return domain.ChatReply{
-		Answer: answer,
-		Model:  completion.Model,
+		Answer:       answer,
+		Model:        completion.Model,
+		Mode:         completionRequest.Mode,
+		FinishReason: completion.Choices[0].FinishReason,
 		Usage: domain.Usage{
 			PromptTokens:     completion.Usage.PromptTokens,
 			CompletionTokens: completion.Usage.CompletionTokens,
