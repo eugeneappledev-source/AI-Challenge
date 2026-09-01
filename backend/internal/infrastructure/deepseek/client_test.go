@@ -109,6 +109,10 @@ func TestClientAddsOutputControlsWithoutChangingUserMessage(t *testing.T) {
 		t.Fatalf("expected unchanged user message, got %+v", payload.Messages)
 	}
 	if !strings.Contains(payload.Messages[0].Content, "80 words") ||
+		!strings.Contains(payload.Messages[0].Content, "20 words") ||
+		!strings.Contains(payload.Messages[0].Content, "8 ingredients") ||
+		!strings.Contains(payload.Messages[0].Content, "4 complete") ||
+		!strings.Contains(payload.Messages[0].Content, "Never truncate") ||
 		!strings.Contains(payload.Messages[0].Content, "out_of_scope") {
 		t.Fatalf("expected length and completion instructions, got %q", payload.Messages[0].Content)
 	}

@@ -45,6 +45,15 @@ func validateAndNormalizeControlledAnswer(answer string) (string, error) {
 	if payload.Ingredients == nil || payload.Steps == nil {
 		return "", errors.New("ingredients and steps must be JSON arrays")
 	}
+	if len(strings.Fields(payload.Answer)) > domain.ControlledAnswerSummaryLimit {
+		return "", fmt.Errorf("answer exceeds %d words", domain.ControlledAnswerSummaryLimit)
+	}
+	if len(payload.Ingredients) > domain.ControlledAnswerIngredientLimit {
+		return "", fmt.Errorf("ingredients exceed %d items", domain.ControlledAnswerIngredientLimit)
+	}
+	if len(payload.Steps) > domain.ControlledAnswerStepLimit {
+		return "", fmt.Errorf("steps exceed %d items", domain.ControlledAnswerStepLimit)
+	}
 
 	var err error
 	payload.Ingredients, err = normalizeNonEmptyStrings(payload.Ingredients, "ingredients")

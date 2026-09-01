@@ -97,6 +97,20 @@ func TestChatServiceRejectsInvalidControlledResponse(t *testing.T) {
 	}
 }
 
+func TestChatServiceRejectsTruncatedControlledResponse(t *testing.T) {
+	client := &completionClientStub{reply: domain.ChatReply{
+		Answer:       `{"status":"ok","answer":"Салат готов","ingredients":[],"steps":[]}`,
+		FinishReason: "length",
+	}}
+	service := NewChatService(client, 100)
+
+	_, err := service.Send(context.Background(), "hello", domain.ResponseModeControlled)
+
+	if !errors.Is(err, ErrInvalidControlledResponse) {
+		t.Fatalf("expected ErrInvalidControlledResponse, got %v", err)
+	}
+}
+
 func TestChatServiceRejectsInvalidMode(t *testing.T) {
 	service := NewChatService(&completionClientStub{}, 100)
 

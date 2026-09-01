@@ -1,8 +1,11 @@
 package domain
 
 const (
-	ControlledAnswerWordLimit = 80
-	FoodOutOfScopeMessage     = "Я отвечаю только на вопросы о еде и приготовлении. Пожалуйста, задайте вопрос по теме."
+	ControlledAnswerWordLimit       = 80
+	ControlledAnswerSummaryLimit    = 20
+	ControlledAnswerIngredientLimit = 8
+	ControlledAnswerStepLimit       = 4
+	FoodOutOfScopeMessage           = "Я отвечаю только на вопросы о еде и приготовлении. Пожалуйста, задайте вопрос по теме."
 )
 
 type ControlledAnswerStatus string

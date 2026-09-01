@@ -52,6 +52,9 @@ func (s *ChatService) Send(ctx context.Context, message string, mode domain.Resp
 		return domain.ChatReply{}, err
 	}
 	if mode == domain.ResponseModeControlled {
+		if strings.EqualFold(strings.TrimSpace(reply.FinishReason), "length") {
+			return domain.ChatReply{}, fmt.Errorf("%w: model reached max_tokens before completing the answer", ErrInvalidControlledResponse)
+		}
 		reply.Answer, err = validateAndNormalizeControlledAnswer(reply.Answer)
 		if err != nil {
 			return domain.ChatReply{}, fmt.Errorf("%w: %v", ErrInvalidControlledResponse, err)

@@ -27,7 +27,8 @@ func TestValidateAndNormalizeControlledAnswer(t *testing.T) {
 }
 
 func TestValidateControlledAnswerRejectsContractViolations(t *testing.T) {
-	tooLongAnswer := strings.TrimSpace(strings.Repeat("слово ", domain.ControlledAnswerWordLimit+1))
+	tooLongSummary := strings.TrimSpace(strings.Repeat("слово ", domain.ControlledAnswerSummaryLimit+1))
+	longStep := strings.TrimSpace(strings.Repeat("слово ", 20))
 	tests := []struct {
 		name   string
 		answer string
@@ -40,7 +41,10 @@ func TestValidateControlledAnswerRejectsContractViolations(t *testing.T) {
 		{name: "empty array item", answer: `{"status":"ok","answer":"Да","ingredients":[""],"steps":[]}`},
 		{name: "wrong refusal", answer: `{"status":"out_of_scope","answer":"Не знаю","ingredients":[],"steps":[]}`},
 		{name: "out of scope content", answer: `{"status":"out_of_scope","answer":"` + domain.FoodOutOfScopeMessage + `","ingredients":["сыр"],"steps":[]}`},
-		{name: "word limit", answer: `{"status":"ok","answer":"` + tooLongAnswer + `","ingredients":[],"steps":[]}`},
+		{name: "summary limit", answer: `{"status":"ok","answer":"` + tooLongSummary + `","ingredients":[],"steps":[]}`},
+		{name: "ingredient limit", answer: `{"status":"ok","answer":"Да","ingredients":["1","2","3","4","5","6","7","8","9"],"steps":[]}`},
+		{name: "step limit", answer: `{"status":"ok","answer":"Да","ingredients":[],"steps":["1","2","3","4","5"]}`},
+		{name: "word limit", answer: `{"status":"ok","answer":"Да","ingredients":[],"steps":["` + longStep + `","` + longStep + `","` + longStep + `","` + longStep + `"]}`},
 	}
 
 	for _, test := range tests {
