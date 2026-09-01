@@ -10,10 +10,20 @@ services:
     networks:
       - app-network
 
+  web:
+    build:
+      context: ../web
+    restart: unless-stopped
+    expose:
+      - "80"
+    networks:
+      - app-network
+
   caddy:
     image: caddy:2.10-alpine
     environment:
       SERVER_ADDRESS: ${SERVER_ADDRESS:-http://localhost}
+      APP_ACCESS_TOKEN: ${APP_ACCESS_TOKEN}
     ports:
       - "80:80"
       - "443:443"
@@ -25,6 +35,7 @@ services:
     restart: unless-stopped
     depends_on:
       - api
+      - web
     networks:
       - app-network
 

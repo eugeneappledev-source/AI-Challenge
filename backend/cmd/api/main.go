@@ -33,7 +33,10 @@ func main() {
 		HTTPClient:   &http.Client{Timeout: cfg.UpstreamTimeout},
 	})
 	chatService := application.NewChatService(llmClient, cfg.MaxMessageRunes)
-	handler := httptransport.NewHandler(chatService, logger, cfg.AppAccessToken)
+	handler := httptransport.NewHandler(chatService, logger, cfg.AppAccessToken, httptransport.RateLimitConfig{
+		PerMinute: cfg.RateLimitPerMinute,
+		PerDay:    cfg.DailyRequestLimit,
+	})
 
 	server := &http.Server{
 		Addr:              ":" + cfg.ServerPort,

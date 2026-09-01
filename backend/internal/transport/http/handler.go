@@ -24,20 +24,27 @@ type Handler struct {
 	chatService    ChatService
 	logger         *slog.Logger
 	appAccessToken string
+	rateLimiter    *rateLimiter
 }
 
-func NewHandler(chatService ChatService, logger *slog.Logger, appAccessToken string) *Handler {
+type RateLimitConfig struct {
+	PerMinute int
+	PerDay    int
+}
+
+func NewHandler(chatService ChatService, logger *slog.Logger, appAccessToken string, rateLimitConfig RateLimitConfig) *Handler {
 	return &Handler{
 		chatService:    chatService,
 		logger:         logger,
 		appAccessToken: appAccessToken,
+		rateLimiter:    newRateLimiter(rateLimitConfig.PerMinute, rateLimitConfig.PerDay),
 	}
 }
 
 func (h *Handler) Routes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", h.health)
-	mux.Handle("POST /v1/chat", h.requireAccessToken(http.HandlerFunc(h.chat)))
+	mux.Handle("POST /v1/chat", h.requireAccessToken(h.limitRequests(http.HandlerFunc(h.chat))))
 	return h.logging(h.recoverPanic(mux))
 }
 

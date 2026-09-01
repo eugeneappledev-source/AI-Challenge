@@ -1,4 +1,27 @@
 {$SERVER_ADDRESS:http://localhost} {
 	encode zstd gzip
-	reverse_proxy api:8080
+
+	# Public website endpoint. The browser never receives the shared API token.
+	handle_path /web-api/* {
+		rewrite * /v1{path}
+		reverse_proxy api:8080 {
+			header_up Authorization "Bearer {$APP_ACCESS_TOKEN}"
+			header_up X-Forwarded-For {remote_host}
+		}
+	}
+
+	# Native clients keep using the authenticated API directly.
+	handle /v1/* {
+		reverse_proxy api:8080 {
+			header_up X-Forwarded-For {remote_host}
+		}
+	}
+
+	handle /health {
+		reverse_proxy api:8080
+	}
+
+	handle {
+		reverse_proxy web:80
+	}
 }

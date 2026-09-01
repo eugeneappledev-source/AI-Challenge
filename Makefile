@@ -1,10 +1,16 @@
-.PHONY: backend-test backend-run ios-generate ios-build
+.PHONY: backend-test backend-run web-build web-run ios-generate ios-build
 
 backend-test:
 	cd backend && go test ./... && go vet ./...
 
 backend-run:
 	cd backend && set -a && . ../.env && set +a && go run ./cmd/api
+
+web-build:
+	cd web && pnpm build
+
+web-run:
+	cd web && pnpm dev
 
 ios-generate:
 	cd ios && xcodegen generate

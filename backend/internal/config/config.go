@@ -13,6 +13,8 @@ const (
 	defaultDeepSeekModel   = "deepseek-v4-flash"
 	defaultSystemPrompt    = "You are a helpful assistant. Answer clearly and concisely."
 	defaultMaxMessageRunes = 4000
+	defaultRatePerMinute   = 10
+	defaultDailyLimit      = 200
 	defaultUpstreamTimeout = 60 * time.Second
 )
 
@@ -24,11 +26,21 @@ type Config struct {
 	DeepSeekSystemPrompt string
 	AppAccessToken       string
 	MaxMessageRunes      int
+	RateLimitPerMinute   int
+	DailyRequestLimit    int
 	UpstreamTimeout      time.Duration
 }
 
 func Load() (Config, error) {
 	maxMessageRunes, err := intFromEnv("MAX_MESSAGE_RUNES", defaultMaxMessageRunes)
+	if err != nil {
+		return Config{}, err
+	}
+	rateLimitPerMinute, err := intFromEnv("RATE_LIMIT_PER_MINUTE", defaultRatePerMinute)
+	if err != nil {
+		return Config{}, err
+	}
+	dailyRequestLimit, err := intFromEnv("DAILY_REQUEST_LIMIT", defaultDailyLimit)
 	if err != nil {
 		return Config{}, err
 	}
@@ -46,6 +58,8 @@ func Load() (Config, error) {
 		DeepSeekSystemPrompt: stringFromEnv("DEEPSEEK_SYSTEM_PROMPT", defaultSystemPrompt),
 		AppAccessToken:       os.Getenv("APP_ACCESS_TOKEN"),
 		MaxMessageRunes:      maxMessageRunes,
+		RateLimitPerMinute:   rateLimitPerMinute,
+		DailyRequestLimit:    dailyRequestLimit,
 		UpstreamTimeout:      upstreamTimeout,
 	}
 

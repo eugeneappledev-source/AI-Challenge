@@ -6,6 +6,10 @@
 backend/bin/
 backend/coverage.out
 
+# Web
+web/node_modules/
+web/dist/
+
 # Xcode
 DerivedData/
 *.xcuserstate

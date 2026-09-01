@@ -3,8 +3,10 @@
 ### Практический путь от первого запроса к LLM до полноценного AI-продукта
 
 [![Backend CI](https://github.com/eugeneappledev-source/AI-Challenge/actions/workflows/backend.yml/badge.svg)](https://github.com/eugeneappledev-source/AI-Challenge/actions/workflows/backend.yml)
+[![Web CI](https://github.com/eugeneappledev-source/AI-Challenge/actions/workflows/web.yml/badge.svg)](https://github.com/eugeneappledev-source/AI-Challenge/actions/workflows/web.yml)
 ![Swift](https://img.shields.io/badge/Swift-6.0-F05138?logo=swift&logoColor=white)
 ![Go](https://img.shields.io/badge/Go-1.27-00ADD8?logo=go&logoColor=white)
+![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)
 ![DeepSeek](https://img.shields.io/badge/LLM-DeepSeek-4D6BFE)
 
 Этот репозиторий — мой практический дневник **AI Advent Challenge, поток 9**. Здесь одно приложение постепенно развивается вместе с заданиями курса: от минимальной интеграции с облачной моделью до более сложной архитектуры, инфраструктуры и пользовательских сценариев.
@@ -20,21 +22,27 @@
 
 ## Текущая версия проекта
 
-Нативное iOS-приложение работает как пищевой AI-ассистент и отправляет один запрос в собственный Go backend в двух режимах. Сервер получает свободный и контролируемый ответы DeepSeek, а SwiftUI-интерфейс позволяет сравнить их с помощью сегмента. Контролируемый JSON декодируется в типизированную модель и отображается как готовая карточка с ингредиентами и шагами; исходный ответ модели остаётся рядом для наглядного сравнения. Вопросы вне темы еды получают вежливый отказ.
+Проект работает как пищевой AI-ассистент сразу в двух клиентах: нативном iOS-приложении и адаптивной web-версии. Пользователь вводит один вопрос, а собственный Go backend отправляет его в DeepSeek в свободном и контролируемом режимах. Интерфейс позволяет переключить ответы, посмотреть готовую карточку с ингредиентами и шагами и сопоставить её с исходным JSON модели. Вопросы вне темы еды получают вежливый отказ в той же структуре.
 
-Проект уже развёрнут на VPS и доступен по HTTPS.
+Проект развёрнут на VPS и доступен по HTTPS без регистрации.
 
-**Live health check:** [https://176-53-173-246.sslip.io/health](https://176-53-173-246.sslip.io/health)
+- **Web-приложение:** [https://176-53-173-246.sslip.io](https://176-53-173-246.sslip.io)
+- **Health check:** [https://176-53-173-246.sslip.io/health](https://176-53-173-246.sslip.io/health)
 
 ## Архитектура
 
 ```mermaid
 flowchart LR
     User["Пользователь"] --> App["iOS · SwiftUI"]
+    User --> Web["Web · React"]
     App -->|"HTTPS · REST"| Gateway["Caddy · VPS"]
+    Web -->|"HTTPS · same-origin"| Gateway
     Gateway --> API["Go backend"]
     API --> LLM["DeepSeek API"]
-    LLM --> API --> App
+    LLM --> API
+    API --> Gateway
+    Gateway --> App
+    Gateway --> Web
 ```
 
 ## Структура
@@ -42,6 +50,7 @@ flowchart LR
 ```text
 AI-Challenge/
 ├── ios/                         # iOS-приложение
+├── web/                         # адаптивное React-приложение
 ├── backend/                     # Go REST API
 ├── deploy/                      # Docker Compose и Caddy
 ├── challenges/                  # дневник выполненных заданий
@@ -71,6 +80,14 @@ AI-Challenge/
 - Caddy и HTTPS;
 - Ubuntu VPS;
 - GitHub Actions.
+
+### Web
+
+- React, TypeScript и Vite;
+- адаптивный интерфейс для desktop и mobile;
+- разбор контролируемого JSON в пользовательскую карточку;
+- публичный same-origin endpoint без секретов в браузере;
+- серверные ограничения частоты и дневного числа запросов.
 
 ## Задания
 
