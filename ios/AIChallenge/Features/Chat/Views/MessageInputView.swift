@@ -70,8 +70,8 @@ struct MessageInputView: View {
     }
 
     private var buttonBackground: Color {
-        if isSending { return .purple }
-        if canSend { return .accentColor }
+        if isSending { return .aiForest }
+        if canSend { return .aiForest }
         return Color(.quaternarySystemFill)
     }
 

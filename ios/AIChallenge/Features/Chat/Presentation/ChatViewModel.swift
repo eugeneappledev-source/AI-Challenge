@@ -34,7 +34,7 @@ final class ChatViewModel {
 
         do {
             comparison = try await compareResponses.execute(message: message)
-            selectedMode = .unrestricted
+            selectedMode = .controlled
         } catch {
             errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }
