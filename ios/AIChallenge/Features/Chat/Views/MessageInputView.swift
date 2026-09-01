@@ -46,6 +46,7 @@ struct MessageInputView: View {
                     if isSending {
                         ProgressView()
                             .tint(.white)
+                            .controlSize(.small)
                     } else {
                         Image(systemName: "arrow.triangle.branch")
                     }
@@ -54,13 +55,27 @@ struct MessageInputView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .frame(height: 48)
+                .foregroundStyle(buttonForeground)
+                .background(buttonBackground, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             }
-            .buttonStyle(.borderedProminent)
-            .buttonBorderShape(.roundedRectangle(radius: 14))
-            .disabled(!canSend)
+            .buttonStyle(.plain)
+            .allowsHitTesting(canSend)
             .accessibilityLabel(isSending ? "Сравнение ответов" : "Сравнить ответы")
+            .accessibilityValue(isSending ? "Выполняется" : canSend ? "Доступно" : "Введите вопрос")
+            .animation(.easeInOut(duration: 0.2), value: isSending)
+            .animation(.easeInOut(duration: 0.2), value: canSend)
         }
         .padding(16)
         .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+
+    private var buttonBackground: Color {
+        if isSending { return .purple }
+        if canSend { return .accentColor }
+        return Color(.quaternarySystemFill)
+    }
+
+    private var buttonForeground: Color {
+        isSending || canSend ? .white : Color(.tertiaryLabel)
     }
 }
