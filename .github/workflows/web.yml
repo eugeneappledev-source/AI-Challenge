@@ -38,6 +38,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      - name: Prepare example environment
+        run: cp .env.example .env
       - name: Validate Docker Compose
         run: docker compose -f deploy/compose.yaml --env-file .env.example config --quiet
       - name: Validate Caddy routes
