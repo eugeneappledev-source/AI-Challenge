@@ -6,22 +6,40 @@ struct MessageInputView: View {
     let canSend: Bool
     let onSend: () -> Void
 
+    @FocusState private var isInputFocused: Bool
+
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Label("Один запрос для двух режимов", systemImage: "text.bubble")
+            Label("Введи свой вопрос", systemImage: "text.bubble")
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.secondary)
 
-            TextField("Введите запрос", text: $text, axis: .vertical)
-                .lineLimit(1...5)
-                .textFieldStyle(.plain)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 13)
-                .background(Color(.tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
-                .submitLabel(.go)
-                .onSubmit {
-                    if canSend { onSend() }
+            HStack(alignment: .top, spacing: 10) {
+                TextField("Напиши вопрос о еде", text: $text, axis: .vertical)
+                    .lineLimit(1...5)
+                    .textFieldStyle(.plain)
+                    .focused($isInputFocused)
+                    .submitLabel(.go)
+                    .onSubmit {
+                        if canSend { onSend() }
+                    }
+
+                if !text.isEmpty {
+                    Button {
+                        text = ""
+                        isInputFocused = true
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title3)
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Очистить вопрос")
                 }
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 13)
+            .background(Color(.tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
 
             Button(action: onSend) {
                 HStack(spacing: 10) {

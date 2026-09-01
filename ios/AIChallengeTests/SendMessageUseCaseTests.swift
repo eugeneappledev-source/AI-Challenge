@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import AIChallenge
 
@@ -36,6 +37,28 @@ struct SendMessageUseCaseTests {
         #expect(requests.count == 2)
         #expect(requests.allSatisfy { $0.message == "Дай рецепт салата" })
         #expect(Set(requests.map(\.mode)) == Set(ResponseControlMode.allCases))
+    }
+
+    @Test
+    func decodesControlledAnswerForPresentation() throws {
+        let json = """
+        {
+          "status": "ok",
+          "answer": "Готово",
+          "ingredients": ["Помидоры", "Фета"],
+          "steps": ["Нарежьте продукты", "Смешайте"]
+        }
+        """
+
+        let answer = try JSONDecoder().decode(
+            ControlledFoodAnswer.self,
+            from: Data(json.utf8)
+        )
+
+        #expect(answer.status == .ok)
+        #expect(answer.answer == "Готово")
+        #expect(answer.ingredients == ["Помидоры", "Фета"])
+        #expect(answer.steps == ["Нарежьте продукты", "Смешайте"])
     }
 }
 

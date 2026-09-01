@@ -4,7 +4,7 @@ import Observation
 @MainActor
 @Observable
 final class ChatViewModel {
-    var input = "Дай простой рецепт греческого салата."
+    var input = ""
     var selectedMode: ResponseControlMode = .unrestricted
     private(set) var comparison: ResponseComparison?
     private(set) var isSending = false

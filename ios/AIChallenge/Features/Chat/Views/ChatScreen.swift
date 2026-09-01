@@ -8,6 +8,7 @@ struct ChatScreen: View {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 20) {
                     introduction
+                    AssistantGuideCard()
 
                     MessageInputView(
                         text: $viewModel.input,
@@ -151,10 +152,18 @@ private struct ComparisonResultCard: View {
 
             Divider()
 
-            Text(reply.answer)
-                .font(.system(.body, design: reply.mode == .controlled ? .monospaced : .default))
-                .textSelection(.enabled)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            if let controlledAnswer = reply.controlledAnswer {
+                ControlledAnswerView(answer: controlledAnswer)
+            } else {
+                Text(reply.answer)
+                    .font(.body)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            if reply.mode == .controlled {
+                RawModelAnswerView(json: reply.answer)
+            }
 
             Divider()
 
@@ -168,6 +177,144 @@ private struct ComparisonResultCard: View {
         }
         .padding(18)
         .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+}
+
+private struct AssistantGuideCard: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("Что умеет ассистент", systemImage: "fork.knife")
+                .font(.headline)
+
+            Text("На один вопрос он готовит два ответа: свободный текст и контролируемый JSON для разбора приложением.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+
+            GuideRow(
+                icon: "checkmark.circle.fill",
+                color: .green,
+                title: "Лучше спрашивать",
+                text: "рецепты, ингредиенты, замены продуктов, кухонные техники и безопасность еды"
+            )
+
+            GuideRow(
+                icon: "xmark.circle.fill",
+                color: .orange,
+                title: "Не по теме",
+                text: "кино, политика, технологии и личные вопросы — controlled-режим вернёт out_of_scope"
+            )
+        }
+        .padding(16)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+}
+
+private struct GuideRow: View {
+    let icon: String
+    let color: Color
+    let title: String
+    let text: String
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: icon)
+                .foregroundStyle(color)
+
+            Text("**\(title):** \(text)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
+private struct ControlledAnswerView: View {
+    let answer: ControlledFoodAnswer
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(spacing: 8) {
+                Image(systemName: answer.status == .ok ? "checkmark.seal.fill" : "exclamationmark.circle.fill")
+                Text(answer.status == .ok ? "JSON успешно распарсен" : "Запрос вне темы")
+                    .font(.subheadline.weight(.semibold))
+            }
+            .foregroundStyle(answer.status == .ok ? Color.green : Color.orange)
+
+            Text(answer.answer)
+                .font(.body)
+                .textSelection(.enabled)
+
+            if !answer.ingredients.isEmpty {
+                StructuredListSection(
+                    title: "Ингредиенты",
+                    systemImage: "basket.fill",
+                    items: answer.ingredients,
+                    numbered: false
+                )
+            }
+
+            if !answer.steps.isEmpty {
+                StructuredListSection(
+                    title: "Приготовление",
+                    systemImage: "list.number",
+                    items: answer.steps,
+                    numbered: true
+                )
+            }
+        }
+        .padding(14)
+        .background(Color.purple.opacity(0.08), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+}
+
+private struct StructuredListSection: View {
+    let title: String
+    let systemImage: String
+    let items: [String]
+    let numbered: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            Label(title, systemImage: systemImage)
+                .font(.subheadline.weight(.semibold))
+
+            ForEach(Array(items.enumerated()), id: \.offset) { index, item in
+                HStack(alignment: .top, spacing: 9) {
+                    Text(numbered ? "\(index + 1)." : "•")
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.purple)
+                        .frame(minWidth: 18, alignment: .trailing)
+
+                    Text(item)
+                        .font(.subheadline)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+        }
+    }
+}
+
+private struct RawModelAnswerView: View {
+    let json: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label("P.S. Исходный ответ модели", systemImage: "curlybraces")
+                .font(.subheadline.weight(.semibold))
+
+            Text("Приложение распарсило этот JSON и собрало карточку выше.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            ScrollView(.horizontal) {
+                Text(json)
+                    .font(.system(.caption, design: .monospaced))
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .scrollIndicators(.hidden)
+            .padding(12)
+            .background(Color(.tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        }
     }
 }
 
