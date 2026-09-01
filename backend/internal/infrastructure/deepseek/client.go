@@ -16,15 +16,16 @@ import (
 const maxErrorBodyBytes = 8 << 10
 
 const (
-	controlledMaxTokens   = 240
-	foodAgentInstruction  = `You are a food assistant. Answer only questions about food, cooking, recipes, ingredients, cuisines, kitchen techniques, and food safety. If a request is unrelated to food, do not discuss it or give additional advice. Use exactly this refusal: "Я отвечаю только на вопросы о еде и приготовлении. Пожалуйста, задайте вопрос по теме." Respond to food-related requests in the user's language.`
-	controlledInstruction = `Return the answer strictly as one valid JSON object with exactly these fields:
+	controlledMaxTokens  = 240
+	foodAgentInstruction = `You are a food assistant. Answer only questions about food, cooking, recipes, ingredients, cuisines, kitchen techniques, and food safety. If a request is unrelated to food, do not discuss it or give additional advice. Use exactly this refusal: "` + domain.FoodOutOfScopeMessage + `" Respond to food-related requests in the user's language.`
+)
+
+var controlledInstruction = fmt.Sprintf(`Return the answer strictly as one valid JSON object with exactly these fields:
 {"status":"ok","answer":"string","ingredients":["string"],"steps":["string"]}
 The only allowed status values are "ok" and "out_of_scope".
 For a food-related request, use status "ok". Fill ingredients and steps only when they are relevant; otherwise use empty arrays.
 For an unrelated request, use status "out_of_scope", put the exact refusal from the food assistant policy in answer, and return empty ingredients and steps arrays.
-Use no more than 80 words across all text values. Do not wrap JSON in Markdown or add commentary. Finish immediately after the closing brace.`
-)
+Use no more than %d words across all text values. Do not wrap JSON in Markdown or add commentary. Finish immediately after the closing brace.`, domain.ControlledAnswerWordLimit)
 
 type HTTPClient interface {
 	Do(request *http.Request) (*http.Response, error)

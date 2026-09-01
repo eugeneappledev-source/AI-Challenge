@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"unicode/utf8"
 
@@ -10,9 +11,10 @@ import (
 )
 
 var (
-	ErrEmptyMessage   = errors.New("message is required")
-	ErrMessageTooLong = errors.New("message is too long")
-	ErrInvalidMode    = errors.New("response mode is invalid")
+	ErrEmptyMessage              = errors.New("message is required")
+	ErrMessageTooLong            = errors.New("message is too long")
+	ErrInvalidMode               = errors.New("response mode is invalid")
+	ErrInvalidControlledResponse = errors.New("controlled response does not match the contract")
 )
 
 type CompletionClient interface {
@@ -42,8 +44,18 @@ func (s *ChatService) Send(ctx context.Context, message string, mode domain.Resp
 	if !mode.IsValid() {
 		return domain.ChatReply{}, ErrInvalidMode
 	}
-	return s.client.Complete(ctx, domain.CompletionRequest{
+	reply, err := s.client.Complete(ctx, domain.CompletionRequest{
 		Message: normalized,
 		Mode:    mode,
 	})
+	if err != nil {
+		return domain.ChatReply{}, err
+	}
+	if mode == domain.ResponseModeControlled {
+		reply.Answer, err = validateAndNormalizeControlledAnswer(reply.Answer)
+		if err != nil {
+			return domain.ChatReply{}, fmt.Errorf("%w: %v", ErrInvalidControlledResponse, err)
+		}
+	}
+	return reply, nil
 }

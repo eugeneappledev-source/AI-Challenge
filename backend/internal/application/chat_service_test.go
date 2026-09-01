@@ -60,16 +60,40 @@ func TestChatServiceRejectsLongUnicodeMessage(t *testing.T) {
 }
 
 func TestChatServiceForwardsControlledMode(t *testing.T) {
-	client := &completionClientStub{reply: domain.ChatReply{Answer: "answer"}}
+	client := &completionClientStub{reply: domain.ChatReply{Answer: `{
+		"status":"ok",
+		"answer":"Салат готов",
+		"ingredients":[],
+		"steps":[]
+	}`}}
 	service := NewChatService(client, 100)
 
-	_, err := service.Send(context.Background(), "hello", domain.ResponseModeControlled)
+	reply, err := service.Send(context.Background(), "hello", domain.ResponseModeControlled)
 
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if client.request.Mode != domain.ResponseModeControlled {
 		t.Fatalf("expected controlled mode, got %q", client.request.Mode)
+	}
+	if reply.Answer != `{
+  "status": "ok",
+  "answer": "Салат готов",
+  "ingredients": [],
+  "steps": []
+}` {
+		t.Fatalf("expected normalized controlled answer, got %q", reply.Answer)
+	}
+}
+
+func TestChatServiceRejectsInvalidControlledResponse(t *testing.T) {
+	client := &completionClientStub{reply: domain.ChatReply{Answer: `{"status":"ok"}`}}
+	service := NewChatService(client, 100)
+
+	_, err := service.Send(context.Background(), "hello", domain.ResponseModeControlled)
+
+	if !errors.Is(err, ErrInvalidControlledResponse) {
+		t.Fatalf("expected ErrInvalidControlledResponse, got %v", err)
 	}
 }
 

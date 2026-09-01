@@ -75,7 +75,7 @@ func TestClientAddsOutputControlsWithoutChangingUserMessage(t *testing.T) {
 		StatusCode: http.StatusOK,
 		Body: io.NopCloser(strings.NewReader(`{
 			"model":"deepseek-v4-flash",
-			"choices":[{"message":{"role":"assistant","content":"{\"answer\":\"Салат\",\"keyPoints\":[]}"},"finish_reason":"stop"}],
+			"choices":[{"message":{"role":"assistant","content":"{\"status\":\"ok\",\"answer\":\"Салат\",\"ingredients\":[],\"steps\":[]}"},"finish_reason":"stop"}],
 			"usage":{"prompt_tokens":20,"completion_tokens":10,"total_tokens":30}
 		}`)),
 	}}
