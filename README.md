@@ -98,4 +98,7 @@ AI-Challenge/
 - зафиксированный результат и способ проверки;
 - Git-тег, сохраняющий состояние проекта на момент сдачи.
 
-Первое решение зафиксировано тегом [`day-01`](https://github.com/eugeneappledev-source/AI-Challenge/tree/day-01).
+Зафиксированные версии заданий:
+
+- [`day-01`](https://github.com/eugeneappledev-source/AI-Challenge/tree/day-01) — первый запрос к облачной LLM;
+- [`day-02`](https://github.com/eugeneappledev-source/AI-Challenge/tree/day-02) — управление форматом, длиной и завершением ответа.

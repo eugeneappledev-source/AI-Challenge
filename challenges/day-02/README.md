@@ -4,6 +4,7 @@
 
 - **Дата:** 1 сентября 2026
 - **Статус:** выполнено ✅
+- **Зафиксированная версия:** [`day-02`](https://github.com/eugeneappledev-source/AI-Challenge/tree/day-02)
 
 ## Задание
 
