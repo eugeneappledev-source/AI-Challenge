@@ -85,9 +85,11 @@ type chatCompletionResponse struct {
 		FinishReason string                `json:"finish_reason"`
 	} `json:"choices"`
 	Usage struct {
-		PromptTokens     int `json:"prompt_tokens"`
-		CompletionTokens int `json:"completion_tokens"`
-		TotalTokens      int `json:"total_tokens"`
+		PromptTokens          int `json:"prompt_tokens"`
+		CompletionTokens      int `json:"completion_tokens"`
+		TotalTokens           int `json:"total_tokens"`
+		PromptCacheHitTokens  int `json:"prompt_cache_hit_tokens"`
+		PromptCacheMissTokens int `json:"prompt_cache_miss_tokens"`
 	} `json:"usage"`
 }
 
@@ -127,6 +129,9 @@ func (c *Client) Generate(ctx context.Context, modelRequest domain.ModelRequest)
 			{Role: "system", Content: modelRequest.SystemPrompt},
 			{Role: "user", Content: modelRequest.UserPrompt},
 		},
+	}
+	if modelRequest.Model != "" {
+		payload.Model = modelRequest.Model
 	}
 	if modelRequest.JSON {
 		payload.ResponseFormat = &responseFormat{Type: "json_object"}
@@ -174,9 +179,11 @@ func (c *Client) Generate(ctx context.Context, modelRequest domain.ModelRequest)
 		Model:        completion.Model,
 		FinishReason: completion.Choices[0].FinishReason,
 		Usage: domain.Usage{
-			PromptTokens:     completion.Usage.PromptTokens,
-			CompletionTokens: completion.Usage.CompletionTokens,
-			TotalTokens:      completion.Usage.TotalTokens,
+			PromptTokens:          completion.Usage.PromptTokens,
+			CompletionTokens:      completion.Usage.CompletionTokens,
+			TotalTokens:           completion.Usage.TotalTokens,
+			PromptCacheHitTokens:  completion.Usage.PromptCacheHitTokens,
+			PromptCacheMissTokens: completion.Usage.PromptCacheMissTokens,
 		},
 	}, nil
 }

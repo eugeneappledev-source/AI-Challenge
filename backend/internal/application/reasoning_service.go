@@ -303,9 +303,11 @@ func responseWasTruncated(response domain.ModelResponse) bool {
 
 func addUsage(lhs, rhs domain.Usage) domain.Usage {
 	return domain.Usage{
-		PromptTokens:     lhs.PromptTokens + rhs.PromptTokens,
-		CompletionTokens: lhs.CompletionTokens + rhs.CompletionTokens,
-		TotalTokens:      lhs.TotalTokens + rhs.TotalTokens,
+		PromptTokens:          lhs.PromptTokens + rhs.PromptTokens,
+		CompletionTokens:      lhs.CompletionTokens + rhs.CompletionTokens,
+		TotalTokens:           lhs.TotalTokens + rhs.TotalTokens,
+		PromptCacheHitTokens:  lhs.PromptCacheHitTokens + rhs.PromptCacheHitTokens,
+		PromptCacheMissTokens: lhs.PromptCacheMissTokens + rhs.PromptCacheMissTokens,
 	}
 }
 

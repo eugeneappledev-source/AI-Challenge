@@ -31,13 +31,19 @@ type TemperatureService interface {
 	Review(ctx context.Context, prompt string, attempts []domain.TemperatureAttempt) (domain.TemperatureReview, error)
 }
 
+type ModelBenchmarkService interface {
+	Run(ctx context.Context, prompt string, tier domain.ModelTier) (domain.ModelBenchmarkAttempt, error)
+	Review(ctx context.Context, prompt string, attempts []domain.ModelBenchmarkAttempt) (domain.ModelBenchmarkReview, error)
+}
+
 type Handler struct {
-	chatService        ChatService
-	reasoningService   ReasoningService
-	temperatureService TemperatureService
-	logger             *slog.Logger
-	appAccessToken     string
-	rateLimiter        *rateLimiter
+	chatService           ChatService
+	reasoningService      ReasoningService
+	temperatureService    TemperatureService
+	modelBenchmarkService ModelBenchmarkService
+	logger                *slog.Logger
+	appAccessToken        string
+	rateLimiter           *rateLimiter
 }
 
 type RateLimitConfig struct {
@@ -49,17 +55,19 @@ func NewHandler(
 	chatService ChatService,
 	reasoningService ReasoningService,
 	temperatureService TemperatureService,
+	modelBenchmarkService ModelBenchmarkService,
 	logger *slog.Logger,
 	appAccessToken string,
 	rateLimitConfig RateLimitConfig,
 ) *Handler {
 	return &Handler{
-		chatService:        chatService,
-		reasoningService:   reasoningService,
-		temperatureService: temperatureService,
-		logger:             logger,
-		appAccessToken:     appAccessToken,
-		rateLimiter:        newRateLimiter(rateLimitConfig.PerMinute, rateLimitConfig.PerDay),
+		chatService:           chatService,
+		reasoningService:      reasoningService,
+		temperatureService:    temperatureService,
+		modelBenchmarkService: modelBenchmarkService,
+		logger:                logger,
+		appAccessToken:        appAccessToken,
+		rateLimiter:           newRateLimiter(rateLimitConfig.PerMinute, rateLimitConfig.PerDay),
 	}
 }
 
@@ -71,7 +79,65 @@ func (h *Handler) Routes() http.Handler {
 	mux.Handle("POST /v1/reasoning/review", h.requireAccessToken(h.limitRequests(http.HandlerFunc(h.reviewReasoning))))
 	mux.Handle("POST /v1/temperature/run", h.requireAccessToken(h.limitRequests(http.HandlerFunc(h.runTemperature))))
 	mux.Handle("POST /v1/temperature/review", h.requireAccessToken(h.limitRequests(http.HandlerFunc(h.reviewTemperature))))
+	mux.Handle("POST /v1/models/run", h.requireAccessToken(h.limitRequests(http.HandlerFunc(h.runModelBenchmark))))
+	mux.Handle("POST /v1/models/review", h.requireAccessToken(h.limitRequests(http.HandlerFunc(h.reviewModelBenchmark))))
 	return h.logging(h.recoverPanic(mux))
+}
+
+type runModelBenchmarkRequest struct {
+	Prompt string           `json:"prompt"`
+	Tier   domain.ModelTier `json:"tier"`
+}
+
+func (h *Handler) runModelBenchmark(response http.ResponseWriter, request *http.Request) {
+	var payload runModelBenchmarkRequest
+	if err := decodeRequestJSON(response, request, &payload); err != nil {
+		writeAPIError(response, http.StatusBadRequest, "invalid_request", "Request body must contain a valid prompt and tier.")
+		return
+	}
+
+	attempt, err := h.modelBenchmarkService.Run(request.Context(), payload.Prompt, payload.Tier)
+	if err != nil {
+		h.writeModelBenchmarkError(response, err)
+		return
+	}
+	writeJSON(response, http.StatusOK, attempt)
+}
+
+type reviewModelBenchmarkRequest struct {
+	Prompt   string                         `json:"prompt"`
+	Attempts []domain.ModelBenchmarkAttempt `json:"attempts"`
+}
+
+func (h *Handler) reviewModelBenchmark(response http.ResponseWriter, request *http.Request) {
+	var payload reviewModelBenchmarkRequest
+	if err := decodeRequestJSON(response, request, &payload); err != nil {
+		writeAPIError(response, http.StatusBadRequest, "invalid_request", "Request body must contain a valid prompt and attempts.")
+		return
+	}
+
+	review, err := h.modelBenchmarkService.Review(request.Context(), payload.Prompt, payload.Attempts)
+	if err != nil {
+		h.writeModelBenchmarkError(response, err)
+		return
+	}
+	writeJSON(response, http.StatusOK, review)
+}
+
+func (h *Handler) writeModelBenchmarkError(response http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, application.ErrEmptyModelPrompt):
+		writeAPIError(response, http.StatusBadRequest, "empty_prompt", "Prompt is required.")
+	case errors.Is(err, application.ErrModelPromptTooLong):
+		writeAPIError(response, http.StatusRequestEntityTooLarge, "prompt_too_long", "Prompt is too long.")
+	case errors.Is(err, application.ErrInvalidModelTier):
+		writeAPIError(response, http.StatusBadRequest, "invalid_tier", "Tier must be basic, extended, or strong.")
+	case errors.Is(err, application.ErrInvalidModelRuns):
+		writeAPIError(response, http.StatusBadRequest, "invalid_attempts", "Exactly one result for every model tier is required.")
+	default:
+		h.logger.Error("model benchmark failed", "error", err)
+		writeAPIError(response, http.StatusBadGateway, "upstream_error", "The language model is temporarily unavailable.")
+	}
 }
 
 type runTemperatureRequest struct {

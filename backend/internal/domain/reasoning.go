@@ -17,6 +17,7 @@ func (m ReasoningMethod) IsValid() bool {
 }
 
 type ModelRequest struct {
+	Model        string
 	SystemPrompt string
 	UserPrompt   string
 	JSON         bool

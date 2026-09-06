@@ -69,6 +69,35 @@ type temperatureServiceRecorder struct {
 	temperature domain.Temperature
 }
 
+type modelBenchmarkServiceStub struct {
+	attempt domain.ModelBenchmarkAttempt
+	review  domain.ModelBenchmarkReview
+	err     error
+}
+
+func (s modelBenchmarkServiceStub) Run(_ context.Context, _ string, _ domain.ModelTier) (domain.ModelBenchmarkAttempt, error) {
+	return s.attempt, s.err
+}
+
+func (s modelBenchmarkServiceStub) Review(_ context.Context, _ string, _ []domain.ModelBenchmarkAttempt) (domain.ModelBenchmarkReview, error) {
+	return s.review, s.err
+}
+
+type modelBenchmarkServiceRecorder struct {
+	prompt string
+	tier   domain.ModelTier
+}
+
+func (s *modelBenchmarkServiceRecorder) Run(_ context.Context, prompt string, tier domain.ModelTier) (domain.ModelBenchmarkAttempt, error) {
+	s.prompt = prompt
+	s.tier = tier
+	return domain.ModelBenchmarkAttempt{Tier: tier, Answer: "answer"}, nil
+}
+
+func (s *modelBenchmarkServiceRecorder) Review(_ context.Context, _ string, _ []domain.ModelBenchmarkAttempt) (domain.ModelBenchmarkReview, error) {
+	return domain.ModelBenchmarkReview{}, nil
+}
+
 func (s *temperatureServiceRecorder) Run(_ context.Context, prompt string, temperature domain.Temperature) (domain.TemperatureAttempt, error) {
 	s.prompt = prompt
 	s.temperature = temperature
@@ -165,6 +194,7 @@ func TestRunReasoningForwardsProblemAndMethod(t *testing.T) {
 		chatServiceStub{},
 		service,
 		temperatureServiceStub{},
+		modelBenchmarkServiceStub{},
 		discardLogger(),
 		"token",
 		RateLimitConfig{PerMinute: 100, PerDay: 1000},
@@ -192,6 +222,7 @@ func TestReviewReasoningReturnsStructuredVerdict(t *testing.T) {
 			ReferenceAnswer: "Эталон",
 		}},
 		temperatureServiceStub{},
+		modelBenchmarkServiceStub{},
 		discardLogger(),
 		"token",
 		RateLimitConfig{PerMinute: 100, PerDay: 1000},
@@ -215,6 +246,7 @@ func TestRunReasoningMapsInvalidMethodError(t *testing.T) {
 		chatServiceStub{},
 		reasoningServiceStub{err: application.ErrInvalidReasoningMethod},
 		temperatureServiceStub{},
+		modelBenchmarkServiceStub{},
 		discardLogger(),
 		"token",
 		RateLimitConfig{PerMinute: 100, PerDay: 1000},
@@ -236,6 +268,7 @@ func TestRunTemperatureForwardsPromptAndExactValue(t *testing.T) {
 		chatServiceStub{},
 		reasoningServiceStub{},
 		service,
+		modelBenchmarkServiceStub{},
 		discardLogger(),
 		"token",
 		RateLimitConfig{PerMinute: 100, PerDay: 1000},
@@ -262,6 +295,7 @@ func TestReviewTemperatureReturnsStructuredFeedback(t *testing.T) {
 			Summary:      "Сравнение готово",
 			BestAccuracy: domain.TemperaturePrecise,
 		}},
+		modelBenchmarkServiceStub{},
 		discardLogger(),
 		"token",
 		RateLimitConfig{PerMinute: 100, PerDay: 1000},
@@ -280,11 +314,74 @@ func TestReviewTemperatureReturnsStructuredFeedback(t *testing.T) {
 	}
 }
 
+func TestRunModelBenchmarkForwardsPromptAndTier(t *testing.T) {
+	service := &modelBenchmarkServiceRecorder{}
+	handler := NewHandler(
+		chatServiceStub{}, reasoningServiceStub{}, temperatureServiceStub{}, service,
+		discardLogger(), "token", RateLimitConfig{PerMinute: 100, PerDay: 1000},
+	)
+	request := httptest.NewRequest(http.MethodPost, "/v1/models/run", strings.NewReader(`{"prompt":"Один запрос","tier":"strong"}`))
+	request.Header.Set("Authorization", "Bearer token")
+	response := httptest.NewRecorder()
+
+	handler.Routes().ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", response.Code, response.Body.String())
+	}
+	if service.prompt != "Один запрос" || service.tier != domain.ModelTierStrong {
+		t.Fatalf("unexpected forwarded values: %+v", service)
+	}
+}
+
+func TestReviewModelBenchmarkReturnsStructuredFeedback(t *testing.T) {
+	handler := NewHandler(
+		chatServiceStub{}, reasoningServiceStub{}, temperatureServiceStub{},
+		modelBenchmarkServiceStub{review: domain.ModelBenchmarkReview{
+			QualityWinner: domain.ModelTierStrong,
+			Fastest:       domain.ModelTierBasic,
+			Cheapest:      domain.ModelTierBasic,
+			Summary:       "Сравнение готово",
+		}},
+		discardLogger(), "token", RateLimitConfig{PerMinute: 100, PerDay: 1000},
+	)
+	request := httptest.NewRequest(http.MethodPost, "/v1/models/review", strings.NewReader(`{"prompt":"Запрос","attempts":[]}`))
+	request.Header.Set("Authorization", "Bearer token")
+	response := httptest.NewRecorder()
+
+	handler.Routes().ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", response.Code, response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), `"qualityWinner":"strong"`) {
+		t.Fatalf("unexpected response: %s", response.Body.String())
+	}
+}
+
+func TestRunModelBenchmarkMapsInvalidTier(t *testing.T) {
+	handler := NewHandler(
+		chatServiceStub{}, reasoningServiceStub{}, temperatureServiceStub{},
+		modelBenchmarkServiceStub{err: application.ErrInvalidModelTier},
+		discardLogger(), "token", RateLimitConfig{PerMinute: 100, PerDay: 1000},
+	)
+	request := httptest.NewRequest(http.MethodPost, "/v1/models/run", strings.NewReader(`{"prompt":"Запрос","tier":"unknown"}`))
+	request.Header.Set("Authorization", "Bearer token")
+	response := httptest.NewRecorder()
+
+	handler.Routes().ServeHTTP(response, request)
+
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", response.Code, response.Body.String())
+	}
+}
+
 func TestChatRateLimitAppliesPerClient(t *testing.T) {
 	handler := NewHandler(
 		chatServiceStub{reply: domain.ChatReply{Answer: "Hello"}},
 		reasoningServiceStub{},
 		temperatureServiceStub{},
+		modelBenchmarkServiceStub{},
 		discardLogger(),
 		"token",
 		RateLimitConfig{PerMinute: 1, PerDay: 10},
@@ -320,6 +417,7 @@ func TestChatDailyLimitAppliesAcrossClients(t *testing.T) {
 		chatServiceStub{reply: domain.ChatReply{Answer: "Hello"}},
 		reasoningServiceStub{},
 		temperatureServiceStub{},
+		modelBenchmarkServiceStub{},
 		discardLogger(),
 		"token",
 		RateLimitConfig{PerMinute: 10, PerDay: 1},
@@ -340,6 +438,7 @@ func TestUnauthorizedRequestDoesNotConsumeQuota(t *testing.T) {
 		chatServiceStub{reply: domain.ChatReply{Answer: "Hello"}},
 		reasoningServiceStub{},
 		temperatureServiceStub{},
+		modelBenchmarkServiceStub{},
 		discardLogger(),
 		"token",
 		RateLimitConfig{PerMinute: 1, PerDay: 1},
@@ -358,7 +457,7 @@ func TestUnauthorizedRequestDoesNotConsumeQuota(t *testing.T) {
 }
 
 func newTestHandler(service ChatService) *Handler {
-	return NewHandler(service, reasoningServiceStub{}, temperatureServiceStub{}, discardLogger(), "token", RateLimitConfig{PerMinute: 100, PerDay: 1000})
+	return NewHandler(service, reasoningServiceStub{}, temperatureServiceStub{}, modelBenchmarkServiceStub{}, discardLogger(), "token", RateLimitConfig{PerMinute: 100, PerDay: 1000})
 }
 
 func authenticatedRequest(clientIP string) *http.Request {

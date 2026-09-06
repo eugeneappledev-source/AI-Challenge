@@ -35,7 +35,8 @@ func main() {
 	chatService := application.NewChatService(llmClient, cfg.MaxMessageRunes)
 	reasoningService := application.NewReasoningService(llmClient, cfg.MaxMessageRunes)
 	temperatureService := application.NewTemperatureService(llmClient, cfg.MaxMessageRunes)
-	handler := httptransport.NewHandler(chatService, reasoningService, temperatureService, logger, cfg.AppAccessToken, httptransport.RateLimitConfig{
+	modelBenchmarkService := application.NewModelBenchmarkService(llmClient, cfg.MaxMessageRunes)
+	handler := httptransport.NewHandler(chatService, reasoningService, temperatureService, modelBenchmarkService, logger, cfg.AppAccessToken, httptransport.RateLimitConfig{
 		PerMinute: cfg.RateLimitPerMinute,
 		PerDay:    cfg.DailyRequestLimit,
 	})

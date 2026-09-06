@@ -38,6 +38,17 @@ enum AppContainer {
         return TemperatureComparisonViewModel(compareTemperatures: compareTemperatures)
     }
 
+    static func makeModelComparisonViewModel() -> ModelComparisonViewModel {
+        let configuration = AppConfiguration.live()
+        let api = ModelBenchmarkAPI(
+            baseURL: configuration.baseURL,
+            accessToken: configuration.accessToken,
+            httpClient: URLSessionHTTPClient(session: .shared)
+        )
+        let repository = DefaultModelBenchmarkRepository(api: api)
+        return ModelComparisonViewModel(compareModels: CompareModelsUseCase(repository: repository))
+    }
+
     private static func makeSendMessageUseCase() -> SendMessageUseCase {
         let configuration = AppConfiguration.live()
         let httpClient = URLSessionHTTPClient(session: .shared)

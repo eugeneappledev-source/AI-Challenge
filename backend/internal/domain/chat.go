@@ -39,9 +39,11 @@ type CompletionRequest struct {
 }
 
 type Usage struct {
-	PromptTokens     int `json:"promptTokens"`
-	CompletionTokens int `json:"completionTokens"`
-	TotalTokens      int `json:"totalTokens"`
+	PromptTokens          int `json:"promptTokens"`
+	CompletionTokens      int `json:"completionTokens"`
+	TotalTokens           int `json:"totalTokens"`
+	PromptCacheHitTokens  int `json:"promptCacheHitTokens,omitempty"`
+	PromptCacheMissTokens int `json:"promptCacheMissTokens,omitempty"`
 }
 
 type ChatReply struct {

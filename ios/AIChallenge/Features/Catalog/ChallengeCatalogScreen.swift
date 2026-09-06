@@ -5,6 +5,7 @@ struct ChallengeCatalogScreen: View {
     let dayTwoViewModel: ChatViewModel
     let dayThreeViewModel: ReasoningComparisonViewModel
     let dayFourViewModel: TemperatureComparisonViewModel
+    let dayFiveViewModel: ModelComparisonViewModel
 
     private let challenges = ChallengeCatalogItem.all
 
@@ -43,6 +44,8 @@ struct ChallengeCatalogScreen: View {
                     ReasoningComparisonScreen(viewModel: dayThreeViewModel)
                 case .dayFour:
                     TemperatureComparisonScreen(viewModel: dayFourViewModel)
+                case .dayFive:
+                    ModelComparisonScreen(viewModel: dayFiveViewModel)
                 }
             }
         }
@@ -63,7 +66,7 @@ struct ChallengeCatalogScreen: View {
                 .font(.system(.largeTitle, design: .rounded, weight: .bold))
                 .minimumScaleFactor(0.82)
 
-            Text("Одно приложение развивается вместе с заданиями — от первого API-запроса до исследования способов рассуждения и параметров генерации.")
+            Text("Одно приложение развивается вместе с заданиями — от первого API-запроса до сравнения параметров и версий моделей.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .lineSpacing(3)
@@ -79,7 +82,7 @@ struct ChallengeCatalogScreen: View {
                     .trim(from: 0, to: 1)
                     .stroke(Color.aiForest, style: StrokeStyle(lineWidth: 7, lineCap: .round))
                     .rotationEffect(.degrees(-90))
-                Text("4/4")
+                Text("5/5")
                     .font(.caption.weight(.bold))
             }
             .frame(width: 54, height: 54)
@@ -87,7 +90,7 @@ struct ChallengeCatalogScreen: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Неделя 1")
                     .font(.headline)
-                Text("Все четыре задания первой недели готовы к проверке.")
+                Text("Все пять заданий первой недели готовы к проверке.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -217,6 +220,7 @@ private enum ChallengeRoute: Hashable {
     case dayTwo
     case dayThree
     case dayFour
+    case dayFive
 }
 
 private struct ChallengeCatalogItem: Identifiable {
@@ -266,6 +270,15 @@ private struct ChallengeCatalogItem: Identifiable {
             tint: .aiPurple,
             status: .completed,
             route: .dayFour
+        ),
+        ChallengeCatalogItem(
+            number: "05",
+            title: "Версии моделей",
+            subtitle: "Три реальные модели: качество, скорость, токены и стоимость.",
+            systemImage: "cpu",
+            tint: .aiBlue,
+            status: .completed,
+            route: .dayFive
         ),
     ]
 }

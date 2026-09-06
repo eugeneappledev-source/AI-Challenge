@@ -147,9 +147,9 @@ func TestGenerateUsesReasoningPromptsAndOptionalJSONControls(t *testing.T) {
 	httpClient := &httpClientStub{response: &http.Response{
 		StatusCode: http.StatusOK,
 		Body: io.NopCloser(strings.NewReader(`{
-			"model":"deepseek-v4-flash",
+			"model":"deepseek-v4-pro",
 			"choices":[{"message":{"role":"assistant","content":"{\"answer\":\"42\"}"},"finish_reason":"stop"}],
-			"usage":{"prompt_tokens":8,"completion_tokens":4,"total_tokens":12}
+			"usage":{"prompt_tokens":8,"completion_tokens":4,"total_tokens":12,"prompt_cache_hit_tokens":3,"prompt_cache_miss_tokens":5}
 		}`)),
 	}}
 	client := NewClient(Config{
@@ -161,6 +161,7 @@ func TestGenerateUsesReasoningPromptsAndOptionalJSONControls(t *testing.T) {
 	})
 
 	response, err := client.Generate(context.Background(), domain.ModelRequest{
+		Model:        "deepseek-v4-pro",
 		SystemPrompt: "Reasoning system",
 		UserPrompt:   "Solve this problem",
 		JSON:         true,
@@ -183,7 +184,11 @@ func TestGenerateUsesReasoningPromptsAndOptionalJSONControls(t *testing.T) {
 	if payload.ResponseFormat == nil || payload.MaxTokens != 900 {
 		t.Fatalf("expected JSON format and token limit, got %+v", payload)
 	}
-	if response.Content != `{"answer":"42"}` || response.Usage.TotalTokens != 12 {
+	if payload.Model != "deepseek-v4-pro" {
+		t.Fatalf("expected request model override, got %q", payload.Model)
+	}
+	if response.Content != `{"answer":"42"}` || response.Usage.TotalTokens != 12 ||
+		response.Usage.PromptCacheHitTokens != 3 || response.Usage.PromptCacheMissTokens != 5 {
 		t.Fatalf("unexpected response: %+v", response)
 	}
 }

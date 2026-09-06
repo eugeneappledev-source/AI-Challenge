@@ -160,6 +160,35 @@ struct SendMessageUseCaseTests {
         #expect(json["temperature"] as? Double == 0)
         #expect(json["prompt"] as? String == "Запрос")
     }
+
+    @Test @MainActor
+    func comparesExactPromptAcrossAllModelsThenRequestsReview() async throws {
+        let repository = RecordingModelBenchmarkRepository()
+        let useCase = CompareModelsUseCase(repository: repository)
+        var completedTiers: Set<ModelTier> = []
+
+        let comparison = try await useCase.execute(prompt: "Один и тот же запрос") { attempt in
+            completedTiers.insert(attempt.tier)
+        }
+        let runRequests = await repository.runRequests
+        let reviewRequest = await repository.reviewRequest
+
+        #expect(runRequests.count == ModelTier.allCases.count)
+        #expect(runRequests.allSatisfy { $0.prompt == "Один и тот же запрос" })
+        #expect(Set(runRequests.map(\.tier)) == Set(ModelTier.allCases))
+        #expect(completedTiers == Set(ModelTier.allCases))
+        #expect(reviewRequest?.prompt == "Один и тот же запрос")
+        #expect(reviewRequest?.attempts.count == 3)
+        #expect(comparison.review.qualityWinner == .strong)
+    }
+
+    @Test
+    func decodesModelUsageWithoutOptionalCacheFields() throws {
+        let data = Data(#"{"promptTokens":4,"completionTokens":5,"totalTokens":9}"#.utf8)
+        let usage = try JSONDecoder().decode(ModelUsage.self, from: data)
+        #expect(usage.promptCacheHitTokens == 0)
+        #expect(usage.promptCacheMissTokens == 0)
+    }
 }
 
 private struct ChatRepositoryStub: ChatRepository {
@@ -270,6 +299,45 @@ private actor RecordingTemperatureRepository: TemperatureRepository {
             recommendations: [],
             model: "test-model",
             usage: ReasoningUsage(promptTokens: 10, completionTokens: 10, totalTokens: 20)
+        )
+    }
+}
+
+private actor RecordingModelBenchmarkRepository: ModelBenchmarkRepository {
+    struct RunRequest: Sendable { let prompt: String; let tier: ModelTier }
+    struct ReviewRequest: Sendable { let prompt: String; let attempts: [ModelBenchmarkAttempt] }
+
+    private(set) var runRequests: [RunRequest] = []
+    private(set) var reviewRequest: ReviewRequest?
+
+    func run(prompt: String, tier: ModelTier) async throws -> ModelBenchmarkAttempt {
+        runRequests.append(RunRequest(prompt: prompt, tier: tier))
+        return ModelBenchmarkAttempt(
+            tier: tier,
+            model: tier.rawValue,
+            answer: tier.rawValue,
+            latencyMilliseconds: 100,
+            usage: ModelUsage(promptTokens: 10, completionTokens: 5, totalTokens: 15),
+            inputCostUSD: 0.00001,
+            outputCostUSD: 0.00001,
+            estimatedCostUSD: 0.00002,
+            pricingPeriod: "off_peak",
+            finishReason: "stop"
+        )
+    }
+
+    func review(prompt: String, attempts: [ModelBenchmarkAttempt]) async throws -> ModelBenchmarkReview {
+        reviewRequest = ReviewRequest(prompt: prompt, attempts: attempts)
+        return ModelBenchmarkReview(
+            qualityWinner: .strong,
+            fastest: .basic,
+            cheapest: .basic,
+            summary: "Итог",
+            differences: ["Различие"],
+            scores: [],
+            recommendations: [],
+            reviewerModel: "reviewer",
+            reviewerUsage: ModelUsage(promptTokens: 10, completionTokens: 10, totalTokens: 20)
         )
     }
 }
