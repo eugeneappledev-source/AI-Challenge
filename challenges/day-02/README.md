@@ -150,3 +150,5 @@ Web-версия использует тот же API-контракт. Брау
 - [Web-приложение](../../web)
 - [Go backend](../../backend)
 - [DeepSeek client](../../backend/internal/infrastructure/deepseek)
+
+Состояние проекта на момент сдачи сохранено в теге [`day-02`](https://github.com/eugeneappledev-source/AI-Challenge/tree/day-02).
