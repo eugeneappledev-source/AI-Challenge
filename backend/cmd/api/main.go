@@ -33,7 +33,8 @@ func main() {
 		HTTPClient:   &http.Client{Timeout: cfg.UpstreamTimeout},
 	})
 	chatService := application.NewChatService(llmClient, cfg.MaxMessageRunes)
-	handler := httptransport.NewHandler(chatService, logger, cfg.AppAccessToken, httptransport.RateLimitConfig{
+	reasoningService := application.NewReasoningService(llmClient, cfg.MaxMessageRunes)
+	handler := httptransport.NewHandler(chatService, reasoningService, logger, cfg.AppAccessToken, httptransport.RateLimitConfig{
 		PerMinute: cfg.RateLimitPerMinute,
 		PerDay:    cfg.DailyRequestLimit,
 	})
@@ -43,7 +44,7 @@ func main() {
 		Handler:           handler.Routes(),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
-		WriteTimeout:      cfg.UpstreamTimeout + 5*time.Second,
+		WriteTimeout:      2*cfg.UpstreamTimeout + 10*time.Second,
 		IdleTimeout:       60 * time.Second,
 	}
 

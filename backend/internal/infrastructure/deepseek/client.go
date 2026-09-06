@@ -92,29 +92,52 @@ type chatCompletionResponse struct {
 
 func (c *Client) Complete(ctx context.Context, completionRequest domain.CompletionRequest) (domain.ChatReply, error) {
 	systemPrompt := c.config.SystemPrompt + "\n\n" + foodAgentInstruction
-	payload := chatCompletionRequest{
-		Model:    c.config.Model,
-		Thinking: thinkingConfig{Type: "disabled"},
-		Stream:   false,
+	modelRequest := domain.ModelRequest{
+		SystemPrompt: systemPrompt,
+		UserPrompt:   completionRequest.Message,
 	}
 	if completionRequest.Mode == domain.ResponseModeControlled {
-		systemPrompt += "\n\n" + controlledInstruction
-		payload.ResponseFormat = &responseFormat{Type: "json_object"}
-		payload.MaxTokens = controlledMaxTokens
+		modelRequest.SystemPrompt += "\n\n" + controlledInstruction
+		modelRequest.JSON = true
+		modelRequest.MaxTokens = controlledMaxTokens
 	}
-	payload.Messages = []chatCompletionMessage{
-		{Role: "system", Content: systemPrompt},
-		{Role: "user", Content: completionRequest.Message},
+
+	response, err := c.Generate(ctx, modelRequest)
+	if err != nil {
+		return domain.ChatReply{}, err
+	}
+	return domain.ChatReply{
+		Answer:       response.Content,
+		Model:        response.Model,
+		Mode:         completionRequest.Mode,
+		FinishReason: response.FinishReason,
+		Usage:        response.Usage,
+	}, nil
+}
+
+func (c *Client) Generate(ctx context.Context, modelRequest domain.ModelRequest) (domain.ModelResponse, error) {
+	payload := chatCompletionRequest{
+		Model:     c.config.Model,
+		Thinking:  thinkingConfig{Type: "disabled"},
+		MaxTokens: modelRequest.MaxTokens,
+		Stream:    false,
+		Messages: []chatCompletionMessage{
+			{Role: "system", Content: modelRequest.SystemPrompt},
+			{Role: "user", Content: modelRequest.UserPrompt},
+		},
+	}
+	if modelRequest.JSON {
+		payload.ResponseFormat = &responseFormat{Type: "json_object"}
 	}
 
 	body, err := json.Marshal(payload)
 	if err != nil {
-		return domain.ChatReply{}, fmt.Errorf("encode request: %w", err)
+		return domain.ModelResponse{}, fmt.Errorf("encode request: %w", err)
 	}
 
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, c.config.APIURL, bytes.NewReader(body))
 	if err != nil {
-		return domain.ChatReply{}, fmt.Errorf("create request: %w", err)
+		return domain.ModelResponse{}, fmt.Errorf("create request: %w", err)
 	}
 	request.Header.Set("Authorization", "Bearer "+c.config.APIKey)
 	request.Header.Set("Content-Type", "application/json")
@@ -122,32 +145,31 @@ func (c *Client) Complete(ctx context.Context, completionRequest domain.Completi
 
 	response, err := c.config.HTTPClient.Do(request)
 	if err != nil {
-		return domain.ChatReply{}, fmt.Errorf("perform request: %w", err)
+		return domain.ModelResponse{}, fmt.Errorf("perform request: %w", err)
 	}
 	defer response.Body.Close()
 
 	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
 		errorBody, _ := io.ReadAll(io.LimitReader(response.Body, maxErrorBodyBytes))
-		return domain.ChatReply{}, fmt.Errorf("deepseek returned status %d: %s", response.StatusCode, strings.TrimSpace(string(errorBody)))
+		return domain.ModelResponse{}, fmt.Errorf("deepseek returned status %d: %s", response.StatusCode, strings.TrimSpace(string(errorBody)))
 	}
 
 	var completion chatCompletionResponse
 	if err := json.NewDecoder(response.Body).Decode(&completion); err != nil {
-		return domain.ChatReply{}, fmt.Errorf("decode response: %w", err)
+		return domain.ModelResponse{}, fmt.Errorf("decode response: %w", err)
 	}
 	if len(completion.Choices) == 0 {
-		return domain.ChatReply{}, errors.New("deepseek returned no choices")
+		return domain.ModelResponse{}, errors.New("deepseek returned no choices")
 	}
 
 	answer := strings.TrimSpace(completion.Choices[0].Message.Content)
 	if answer == "" {
-		return domain.ChatReply{}, errors.New("deepseek returned an empty answer")
+		return domain.ModelResponse{}, errors.New("deepseek returned an empty answer")
 	}
 
-	return domain.ChatReply{
-		Answer:       answer,
+	return domain.ModelResponse{
+		Content:      answer,
 		Model:        completion.Model,
-		Mode:         completionRequest.Mode,
 		FinishReason: completion.Choices[0].FinishReason,
 		Usage: domain.Usage{
 			PromptTokens:     completion.Usage.PromptTokens,

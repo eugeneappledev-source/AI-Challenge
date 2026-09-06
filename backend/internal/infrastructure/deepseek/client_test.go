@@ -142,3 +142,48 @@ func TestClientReportsUpstreamError(t *testing.T) {
 		t.Fatalf("expected upstream status error, got %v", err)
 	}
 }
+
+func TestGenerateUsesReasoningPromptsAndOptionalJSONControls(t *testing.T) {
+	httpClient := &httpClientStub{response: &http.Response{
+		StatusCode: http.StatusOK,
+		Body: io.NopCloser(strings.NewReader(`{
+			"model":"deepseek-v4-flash",
+			"choices":[{"message":{"role":"assistant","content":"{\"answer\":\"42\"}"},"finish_reason":"stop"}],
+			"usage":{"prompt_tokens":8,"completion_tokens":4,"total_tokens":12}
+		}`)),
+	}}
+	client := NewClient(Config{
+		APIURL:       "https://example.com/chat/completions",
+		APIKey:       "secret",
+		Model:        "deepseek-v4-flash",
+		SystemPrompt: "food config must not leak",
+		HTTPClient:   httpClient,
+	})
+
+	response, err := client.Generate(context.Background(), domain.ModelRequest{
+		SystemPrompt: "Reasoning system",
+		UserPrompt:   "Solve this problem",
+		JSON:         true,
+		MaxTokens:    900,
+	})
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	var payload chatCompletionRequest
+	if err := json.Unmarshal([]byte(httpClient.body), &payload); err != nil {
+		t.Fatalf("decode captured request: %v", err)
+	}
+	if payload.Messages[0].Content != "Reasoning system" || payload.Messages[1].Content != "Solve this problem" {
+		t.Fatalf("unexpected messages: %+v", payload.Messages)
+	}
+	if strings.Contains(httpClient.body, "food assistant") || strings.Contains(httpClient.body, "food config") {
+		t.Fatalf("food policy must not leak into reasoning request: %s", httpClient.body)
+	}
+	if payload.ResponseFormat == nil || payload.MaxTokens != 900 {
+		t.Fatalf("expected JSON format and token limit, got %+v", payload)
+	}
+	if response.Content != `{"answer":"42"}` || response.Usage.TotalTokens != 12 {
+		t.Fatalf("unexpected response: %+v", response)
+	}
+}

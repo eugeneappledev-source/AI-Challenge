@@ -60,6 +60,71 @@ struct SendMessageUseCaseTests {
         #expect(answer.ingredients == ["Помидоры", "Фета"])
         #expect(answer.steps == ["Нарежьте продукты", "Смешайте"])
     }
+
+    @Test @MainActor
+    func dayOneSendsTrimmedPromptInUnrestrictedMode() async {
+        let repository = RecordingChatRepository()
+        let useCase = SendMessageUseCase(repository: repository)
+        let viewModel = DayOneViewModel(sendMessage: useCase)
+        viewModel.input = "  Дай рецепт супа  "
+
+        await viewModel.send()
+        let requests = await repository.requests
+
+        #expect(requests.count == 1)
+        #expect(requests.first?.message == "Дай рецепт супа")
+        #expect(requests.first?.mode == .unrestricted)
+        #expect(viewModel.submittedPrompt == "Дай рецепт супа")
+        #expect(viewModel.reply?.answer == "unrestricted")
+    }
+
+    @Test @MainActor
+    func comparesAllReasoningMethodsThenRequestsReview() async throws {
+        let repository = RecordingReasoningRepository()
+        let useCase = CompareReasoningStrategiesUseCase(repository: repository)
+        var completedMethods: Set<ReasoningMethod> = []
+
+        let comparison = try await useCase.execute(problem: "Одна задача") { attempt in
+            completedMethods.insert(attempt.method)
+        }
+        let runRequests = await repository.runRequests
+        let reviewRequest = await repository.reviewRequest
+
+        #expect(runRequests.count == ReasoningMethod.allCases.count)
+        #expect(runRequests.allSatisfy { $0.problem == "Одна задача" })
+        #expect(Set(runRequests.map(\.method)) == Set(ReasoningMethod.allCases))
+        #expect(completedMethods == Set(ReasoningMethod.allCases))
+        #expect(reviewRequest?.problem == "Одна задача")
+        #expect(reviewRequest?.attempts.count == 4)
+        #expect(comparison.review.winner == .stepByStep)
+    }
+
+    @Test
+    func decodesReasoningAttemptWhenOptionalFieldsAreMissing() throws {
+        let json = """
+        {
+          "method": "direct",
+          "answer": "Ответ",
+          "model": "test-model",
+          "finishReason": "stop",
+          "usage": {
+            "promptTokens": 4,
+            "completionTokens": 5,
+            "totalTokens": 9
+          }
+        }
+        """
+
+        let attempt = try JSONDecoder().decode(
+            ReasoningAttempt.self,
+            from: Data(json.utf8)
+        )
+
+        #expect(attempt.method == .direct)
+        #expect(attempt.generatedPrompt == nil)
+        #expect(attempt.experts.isEmpty)
+        #expect(attempt.usage.totalTokens == 9)
+    }
 }
 
 private struct ChatRepositoryStub: ChatRepository {
@@ -88,6 +153,47 @@ private actor RecordingChatRepository: ChatRepository {
             promptTokens: 10,
             completionTokens: 5,
             totalTokens: 15
+        )
+    }
+}
+
+private actor RecordingReasoningRepository: ReasoningRepository {
+    struct RunRequest: Sendable {
+        let problem: String
+        let method: ReasoningMethod
+    }
+
+    struct ReviewRequest: Sendable {
+        let problem: String
+        let attempts: [ReasoningAttempt]
+    }
+
+    private(set) var runRequests: [RunRequest] = []
+    private(set) var reviewRequest: ReviewRequest?
+
+    func run(problem: String, method: ReasoningMethod) async throws -> ReasoningAttempt {
+        runRequests.append(RunRequest(problem: problem, method: method))
+        return ReasoningAttempt(
+            method: method,
+            answer: method.rawValue,
+            generatedPrompt: method == .metaPrompt ? "generated" : nil,
+            experts: [],
+            model: "test-model",
+            finishReason: "stop",
+            usage: ReasoningUsage(promptTokens: 2, completionTokens: 3, totalTokens: 5)
+        )
+    }
+
+    func review(problem: String, attempts: [ReasoningAttempt]) async throws -> ReasoningReview {
+        reviewRequest = ReviewRequest(problem: problem, attempts: attempts)
+        return ReasoningReview(
+            winner: .stepByStep,
+            verdict: "Пошаговый ответ лучше проверен.",
+            referenceAnswer: "Эталон",
+            differences: ["Глубина проверки"],
+            scores: [],
+            model: "test-model",
+            usage: ReasoningUsage(promptTokens: 10, completionTokens: 10, totalTokens: 20)
         )
     }
 }

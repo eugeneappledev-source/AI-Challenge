@@ -31,6 +31,35 @@ func (s *chatServiceRecorder) Send(_ context.Context, _ string, mode domain.Resp
 	return domain.ChatReply{Answer: "Hello", Mode: mode}, nil
 }
 
+type reasoningServiceStub struct {
+	attempt domain.ReasoningAttempt
+	review  domain.ReasoningReview
+	err     error
+}
+
+func (s reasoningServiceStub) Run(_ context.Context, _ string, _ domain.ReasoningMethod) (domain.ReasoningAttempt, error) {
+	return s.attempt, s.err
+}
+
+func (s reasoningServiceStub) Review(_ context.Context, _ string, _ []domain.ReasoningAttempt) (domain.ReasoningReview, error) {
+	return s.review, s.err
+}
+
+type reasoningServiceRecorder struct {
+	problem string
+	method  domain.ReasoningMethod
+}
+
+func (s *reasoningServiceRecorder) Run(_ context.Context, problem string, method domain.ReasoningMethod) (domain.ReasoningAttempt, error) {
+	s.problem = problem
+	s.method = method
+	return domain.ReasoningAttempt{Method: method, Answer: "answer"}, nil
+}
+
+func (s *reasoningServiceRecorder) Review(_ context.Context, _ string, _ []domain.ReasoningAttempt) (domain.ReasoningReview, error) {
+	return domain.ReasoningReview{}, nil
+}
+
 func TestHealthDoesNotRequireAuthentication(t *testing.T) {
 	handler := newTestHandler(chatServiceStub{})
 	request := httptest.NewRequest(http.MethodGet, "/health", nil)
@@ -101,9 +130,78 @@ func TestChatMapsInvalidModeError(t *testing.T) {
 	}
 }
 
+func TestRunReasoningForwardsProblemAndMethod(t *testing.T) {
+	service := &reasoningServiceRecorder{}
+	handler := NewHandler(
+		chatServiceStub{},
+		service,
+		discardLogger(),
+		"token",
+		RateLimitConfig{PerMinute: 100, PerDay: 1000},
+	)
+	request := httptest.NewRequest(http.MethodPost, "/v1/reasoning/run", strings.NewReader(`{"problem":"Задача","method":"step_by_step"}`))
+	request.Header.Set("Authorization", "Bearer token")
+	response := httptest.NewRecorder()
+
+	handler.Routes().ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", response.Code, response.Body.String())
+	}
+	if service.problem != "Задача" || service.method != domain.ReasoningMethodStepByStep {
+		t.Fatalf("unexpected forwarded values: %+v", service)
+	}
+}
+
+func TestReviewReasoningReturnsStructuredVerdict(t *testing.T) {
+	handler := NewHandler(
+		chatServiceStub{},
+		reasoningServiceStub{review: domain.ReasoningReview{
+			Winner:          domain.ReasoningMethodDirect,
+			Verdict:         "Верно",
+			ReferenceAnswer: "Эталон",
+		}},
+		discardLogger(),
+		"token",
+		RateLimitConfig{PerMinute: 100, PerDay: 1000},
+	)
+	request := httptest.NewRequest(http.MethodPost, "/v1/reasoning/review", strings.NewReader(`{"problem":"Задача","attempts":[]}`))
+	request.Header.Set("Authorization", "Bearer token")
+	response := httptest.NewRecorder()
+
+	handler.Routes().ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", response.Code, response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), `"winner":"direct"`) {
+		t.Fatalf("unexpected response: %s", response.Body.String())
+	}
+}
+
+func TestRunReasoningMapsInvalidMethodError(t *testing.T) {
+	handler := NewHandler(
+		chatServiceStub{},
+		reasoningServiceStub{err: application.ErrInvalidReasoningMethod},
+		discardLogger(),
+		"token",
+		RateLimitConfig{PerMinute: 100, PerDay: 1000},
+	)
+	request := httptest.NewRequest(http.MethodPost, "/v1/reasoning/run", strings.NewReader(`{"problem":"Задача","method":"unknown"}`))
+	request.Header.Set("Authorization", "Bearer token")
+	response := httptest.NewRecorder()
+
+	handler.Routes().ServeHTTP(response, request)
+
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", response.Code, response.Body.String())
+	}
+}
+
 func TestChatRateLimitAppliesPerClient(t *testing.T) {
 	handler := NewHandler(
 		chatServiceStub{reply: domain.ChatReply{Answer: "Hello"}},
+		reasoningServiceStub{},
 		discardLogger(),
 		"token",
 		RateLimitConfig{PerMinute: 1, PerDay: 10},
@@ -137,6 +235,7 @@ func TestChatRateLimitAppliesPerClient(t *testing.T) {
 func TestChatDailyLimitAppliesAcrossClients(t *testing.T) {
 	handler := NewHandler(
 		chatServiceStub{reply: domain.ChatReply{Answer: "Hello"}},
+		reasoningServiceStub{},
 		discardLogger(),
 		"token",
 		RateLimitConfig{PerMinute: 10, PerDay: 1},
@@ -155,6 +254,7 @@ func TestChatDailyLimitAppliesAcrossClients(t *testing.T) {
 func TestUnauthorizedRequestDoesNotConsumeQuota(t *testing.T) {
 	handler := NewHandler(
 		chatServiceStub{reply: domain.ChatReply{Answer: "Hello"}},
+		reasoningServiceStub{},
 		discardLogger(),
 		"token",
 		RateLimitConfig{PerMinute: 1, PerDay: 1},
@@ -173,7 +273,7 @@ func TestUnauthorizedRequestDoesNotConsumeQuota(t *testing.T) {
 }
 
 func newTestHandler(service ChatService) *Handler {
-	return NewHandler(service, discardLogger(), "token", RateLimitConfig{PerMinute: 100, PerDay: 1000})
+	return NewHandler(service, reasoningServiceStub{}, discardLogger(), "token", RateLimitConfig{PerMinute: 100, PerDay: 1000})
 }
 
 func authenticatedRequest(clientIP string) *http.Request {

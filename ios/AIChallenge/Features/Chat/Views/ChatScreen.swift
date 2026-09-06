@@ -4,40 +4,39 @@ struct ChatScreen: View {
     @State var viewModel: ChatViewModel
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 20) {
-                    introduction
-                    AssistantGuideCard()
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 20) {
+                introduction
+                AssistantGuideCard()
 
-                    MessageInputView(
-                        text: $viewModel.input,
-                        isSending: viewModel.isSending,
-                        canSend: viewModel.canSend
-                    ) {
-                        Task { await viewModel.compare() }
-                    }
+                MessageInputView(
+                    text: $viewModel.input,
+                    isSending: viewModel.isSending,
+                    canSend: viewModel.canSend
+                ) {
+                    Task { await viewModel.compare() }
+                }
 
-                    resultSection
-                }
-                .padding()
+                resultSection
             }
-            .background(Color(.systemGroupedBackground))
-            .navigationTitle("День 2")
-            .navigationBarTitleDisplayMode(.inline)
-            .alert(
-                "Не удалось получить ответ",
-                isPresented: Binding(
-                    get: { viewModel.errorMessage != nil },
-                    set: { if !$0 { viewModel.errorMessage = nil } }
-                )
-            ) {
-                Button("Понятно", role: .cancel) {
-                    viewModel.errorMessage = nil
-                }
-            } message: {
-                Text(viewModel.errorMessage ?? "Неизвестная ошибка")
+            .padding()
+        }
+        .background(Color(.systemGroupedBackground))
+        .navigationTitle("День 2")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.visible, for: .navigationBar)
+        .alert(
+            "Не удалось получить ответ",
+            isPresented: Binding(
+                get: { viewModel.errorMessage != nil },
+                set: { if !$0 { viewModel.errorMessage = nil } }
+            )
+        ) {
+            Button("Понятно", role: .cancel) {
+                viewModel.errorMessage = nil
             }
+        } message: {
+            Text(viewModel.errorMessage ?? "Неизвестная ошибка")
         }
     }
 
@@ -453,10 +452,4 @@ private extension ResponseControlMode {
             ["Тема: еда", "JSON", "≤ 80 слов", "≤ 8 ингредиентов", "≤ 4 шагов", "Без обрыва"]
         }
     }
-}
-
-extension Color {
-    static let aiForest = Color(red: 23 / 255, green: 61 / 255, blue: 43 / 255)
-    static let aiCoral = Color(red: 242 / 255, green: 110 / 255, blue: 63 / 255)
-    static let aiSuccess = Color(red: 47 / 255, green: 122 / 255, blue: 76 / 255)
 }

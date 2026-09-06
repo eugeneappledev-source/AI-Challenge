@@ -5,6 +5,7 @@ import (
 	"crypto/subtle"
 	"encoding/json"
 	"errors"
+	"io"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -14,17 +15,23 @@ import (
 	"github.com/eugeneappledev-source/AI-Challenge/backend/internal/domain"
 )
 
-const maxRequestBodyBytes = 32 << 10
+const maxRequestBodyBytes = 128 << 10
 
 type ChatService interface {
 	Send(ctx context.Context, message string, mode domain.ResponseMode) (domain.ChatReply, error)
 }
 
+type ReasoningService interface {
+	Run(ctx context.Context, problem string, method domain.ReasoningMethod) (domain.ReasoningAttempt, error)
+	Review(ctx context.Context, problem string, attempts []domain.ReasoningAttempt) (domain.ReasoningReview, error)
+}
+
 type Handler struct {
-	chatService    ChatService
-	logger         *slog.Logger
-	appAccessToken string
-	rateLimiter    *rateLimiter
+	chatService      ChatService
+	reasoningService ReasoningService
+	logger           *slog.Logger
+	appAccessToken   string
+	rateLimiter      *rateLimiter
 }
 
 type RateLimitConfig struct {
@@ -32,12 +39,19 @@ type RateLimitConfig struct {
 	PerDay    int
 }
 
-func NewHandler(chatService ChatService, logger *slog.Logger, appAccessToken string, rateLimitConfig RateLimitConfig) *Handler {
+func NewHandler(
+	chatService ChatService,
+	reasoningService ReasoningService,
+	logger *slog.Logger,
+	appAccessToken string,
+	rateLimitConfig RateLimitConfig,
+) *Handler {
 	return &Handler{
-		chatService:    chatService,
-		logger:         logger,
-		appAccessToken: appAccessToken,
-		rateLimiter:    newRateLimiter(rateLimitConfig.PerMinute, rateLimitConfig.PerDay),
+		chatService:      chatService,
+		reasoningService: reasoningService,
+		logger:           logger,
+		appAccessToken:   appAccessToken,
+		rateLimiter:      newRateLimiter(rateLimitConfig.PerMinute, rateLimitConfig.PerDay),
 	}
 }
 
@@ -45,6 +59,8 @@ func (h *Handler) Routes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", h.health)
 	mux.Handle("POST /v1/chat", h.requireAccessToken(h.limitRequests(http.HandlerFunc(h.chat))))
+	mux.Handle("POST /v1/reasoning/run", h.requireAccessToken(h.limitRequests(http.HandlerFunc(h.runReasoning))))
+	mux.Handle("POST /v1/reasoning/review", h.requireAccessToken(h.limitRequests(http.HandlerFunc(h.reviewReasoning))))
 	return h.logging(h.recoverPanic(mux))
 }
 
@@ -58,17 +74,9 @@ type chatRequest struct {
 }
 
 func (h *Handler) chat(response http.ResponseWriter, request *http.Request) {
-	request.Body = http.MaxBytesReader(response, request.Body, maxRequestBodyBytes)
-	decoder := json.NewDecoder(request.Body)
-	decoder.DisallowUnknownFields()
-
 	var payload chatRequest
-	if err := decoder.Decode(&payload); err != nil {
+	if err := decodeRequestJSON(response, request, &payload); err != nil {
 		writeAPIError(response, http.StatusBadRequest, "invalid_request", "Request body must contain a valid message.")
-		return
-	}
-	if decoder.Decode(&struct{}{}) == nil {
-		writeAPIError(response, http.StatusBadRequest, "invalid_request", "Request body must contain a single JSON object.")
 		return
 	}
 
@@ -89,6 +97,78 @@ func (h *Handler) chat(response http.ResponseWriter, request *http.Request) {
 	}
 
 	writeJSON(response, http.StatusOK, reply)
+}
+
+type runReasoningRequest struct {
+	Problem string                 `json:"problem"`
+	Method  domain.ReasoningMethod `json:"method"`
+}
+
+func (h *Handler) runReasoning(response http.ResponseWriter, request *http.Request) {
+	var payload runReasoningRequest
+	if err := decodeRequestJSON(response, request, &payload); err != nil {
+		writeAPIError(response, http.StatusBadRequest, "invalid_request", "Request body must contain a valid problem and method.")
+		return
+	}
+
+	attempt, err := h.reasoningService.Run(request.Context(), payload.Problem, payload.Method)
+	if err != nil {
+		h.writeReasoningError(response, err)
+		return
+	}
+	writeJSON(response, http.StatusOK, attempt)
+}
+
+type reviewReasoningRequest struct {
+	Problem  string                    `json:"problem"`
+	Attempts []domain.ReasoningAttempt `json:"attempts"`
+}
+
+func (h *Handler) reviewReasoning(response http.ResponseWriter, request *http.Request) {
+	var payload reviewReasoningRequest
+	if err := decodeRequestJSON(response, request, &payload); err != nil {
+		writeAPIError(response, http.StatusBadRequest, "invalid_request", "Request body must contain a valid problem and attempts.")
+		return
+	}
+
+	review, err := h.reasoningService.Review(request.Context(), payload.Problem, payload.Attempts)
+	if err != nil {
+		h.writeReasoningError(response, err)
+		return
+	}
+	writeJSON(response, http.StatusOK, review)
+}
+
+func (h *Handler) writeReasoningError(response http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, application.ErrEmptyProblem):
+		writeAPIError(response, http.StatusBadRequest, "empty_problem", "Problem is required.")
+	case errors.Is(err, application.ErrProblemTooLong):
+		writeAPIError(response, http.StatusRequestEntityTooLarge, "problem_too_long", "Problem is too long.")
+	case errors.Is(err, application.ErrInvalidReasoningMethod):
+		writeAPIError(response, http.StatusBadRequest, "invalid_method", "Method must be direct, step_by_step, meta_prompt, or expert_panel.")
+	case errors.Is(err, application.ErrInvalidReasoningAttempts):
+		writeAPIError(response, http.StatusBadRequest, "invalid_attempts", "Exactly one result for every reasoning method is required.")
+	default:
+		h.logger.Error("reasoning completion failed", "error", err)
+		writeAPIError(response, http.StatusBadGateway, "upstream_error", "The language model is temporarily unavailable.")
+	}
+}
+
+func decodeRequestJSON(response http.ResponseWriter, request *http.Request, target any) error {
+	request.Body = http.MaxBytesReader(response, request.Body, maxRequestBodyBytes)
+	decoder := json.NewDecoder(request.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(target); err != nil {
+		return err
+	}
+	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
+		if err == nil {
+			return errors.New("multiple JSON values")
+		}
+		return err
+	}
+	return nil
 }
 
 func (h *Handler) requireAccessToken(next http.Handler) http.Handler {
