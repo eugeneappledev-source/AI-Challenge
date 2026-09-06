@@ -34,7 +34,8 @@ func main() {
 	})
 	chatService := application.NewChatService(llmClient, cfg.MaxMessageRunes)
 	reasoningService := application.NewReasoningService(llmClient, cfg.MaxMessageRunes)
-	handler := httptransport.NewHandler(chatService, reasoningService, logger, cfg.AppAccessToken, httptransport.RateLimitConfig{
+	temperatureService := application.NewTemperatureService(llmClient, cfg.MaxMessageRunes)
+	handler := httptransport.NewHandler(chatService, reasoningService, temperatureService, logger, cfg.AppAccessToken, httptransport.RateLimitConfig{
 		PerMinute: cfg.RateLimitPerMinute,
 		PerDay:    cfg.DailyRequestLimit,
 	})

@@ -125,6 +125,41 @@ struct SendMessageUseCaseTests {
         #expect(attempt.experts.isEmpty)
         #expect(attempt.usage.totalTokens == 9)
     }
+
+    @Test @MainActor
+    func comparesExactPromptAtAllTemperaturesThenRequestsReview() async throws {
+        let repository = RecordingTemperatureRepository()
+        let useCase = CompareTemperaturesUseCase(repository: repository)
+        var completedTemperatures: Set<TemperaturePreset> = []
+
+        let comparison = try await useCase.execute(prompt: "Один и тот же запрос") { attempt in
+            completedTemperatures.insert(attempt.temperature)
+        }
+        let runRequests = await repository.runRequests
+        let reviewRequest = await repository.reviewRequest
+
+        #expect(runRequests.count == TemperaturePreset.allCases.count)
+        #expect(runRequests.allSatisfy { $0.prompt == "Один и тот же запрос" })
+        #expect(Set(runRequests.map(\.temperature)) == Set(TemperaturePreset.allCases))
+        #expect(completedTemperatures == Set(TemperaturePreset.allCases))
+        #expect(reviewRequest?.prompt == "Один и тот же запрос")
+        #expect(reviewRequest?.attempts.count == 3)
+        #expect(comparison.review.bestAccuracy == .precise)
+    }
+
+    @Test
+    func encodesTemperatureZeroAsExplicitNumber() throws {
+        let request = RunTemperatureRequestDTO(
+            prompt: "Запрос",
+            temperature: .precise
+        )
+
+        let data = try JSONEncoder().encode(request)
+        let json = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+
+        #expect(json["temperature"] as? Double == 0)
+        #expect(json["prompt"] as? String == "Запрос")
+    }
 }
 
 private struct ChatRepositoryStub: ChatRepository {
@@ -192,6 +227,47 @@ private actor RecordingReasoningRepository: ReasoningRepository {
             referenceAnswer: "Эталон",
             differences: ["Глубина проверки"],
             scores: [],
+            model: "test-model",
+            usage: ReasoningUsage(promptTokens: 10, completionTokens: 10, totalTokens: 20)
+        )
+    }
+}
+
+private actor RecordingTemperatureRepository: TemperatureRepository {
+    struct RunRequest: Sendable {
+        let prompt: String
+        let temperature: TemperaturePreset
+    }
+
+    struct ReviewRequest: Sendable {
+        let prompt: String
+        let attempts: [TemperatureAttempt]
+    }
+
+    private(set) var runRequests: [RunRequest] = []
+    private(set) var reviewRequest: ReviewRequest?
+
+    func run(prompt: String, temperature: TemperaturePreset) async throws -> TemperatureAttempt {
+        runRequests.append(RunRequest(prompt: prompt, temperature: temperature))
+        return TemperatureAttempt(
+            temperature: temperature,
+            answer: String(temperature.rawValue),
+            model: "test-model",
+            finishReason: "stop",
+            usage: ReasoningUsage(promptTokens: 2, completionTokens: 3, totalTokens: 5)
+        )
+    }
+
+    func review(prompt: String, attempts: [TemperatureAttempt]) async throws -> TemperatureReview {
+        reviewRequest = ReviewRequest(prompt: prompt, attempts: attempts)
+        return TemperatureReview(
+            summary: "Итог",
+            bestAccuracy: .precise,
+            bestCreativity: .creative,
+            bestDiversity: .creative,
+            differences: ["Различие"],
+            scores: [],
+            recommendations: [],
             model: "test-model",
             usage: ReasoningUsage(promptTokens: 10, completionTokens: 10, totalTokens: 20)
         )

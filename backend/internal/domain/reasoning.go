@@ -21,6 +21,7 @@ type ModelRequest struct {
 	UserPrompt   string
 	JSON         bool
 	MaxTokens    int
+	Temperature  *float64
 }
 
 type ModelResponse struct {

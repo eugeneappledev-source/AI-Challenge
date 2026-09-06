@@ -50,6 +50,35 @@ type reasoningServiceRecorder struct {
 	method  domain.ReasoningMethod
 }
 
+type temperatureServiceStub struct {
+	attempt domain.TemperatureAttempt
+	review  domain.TemperatureReview
+	err     error
+}
+
+func (s temperatureServiceStub) Run(_ context.Context, _ string, _ domain.Temperature) (domain.TemperatureAttempt, error) {
+	return s.attempt, s.err
+}
+
+func (s temperatureServiceStub) Review(_ context.Context, _ string, _ []domain.TemperatureAttempt) (domain.TemperatureReview, error) {
+	return s.review, s.err
+}
+
+type temperatureServiceRecorder struct {
+	prompt      string
+	temperature domain.Temperature
+}
+
+func (s *temperatureServiceRecorder) Run(_ context.Context, prompt string, temperature domain.Temperature) (domain.TemperatureAttempt, error) {
+	s.prompt = prompt
+	s.temperature = temperature
+	return domain.TemperatureAttempt{Temperature: temperature, Answer: "answer"}, nil
+}
+
+func (s *temperatureServiceRecorder) Review(_ context.Context, _ string, _ []domain.TemperatureAttempt) (domain.TemperatureReview, error) {
+	return domain.TemperatureReview{}, nil
+}
+
 func (s *reasoningServiceRecorder) Run(_ context.Context, problem string, method domain.ReasoningMethod) (domain.ReasoningAttempt, error) {
 	s.problem = problem
 	s.method = method
@@ -135,6 +164,7 @@ func TestRunReasoningForwardsProblemAndMethod(t *testing.T) {
 	handler := NewHandler(
 		chatServiceStub{},
 		service,
+		temperatureServiceStub{},
 		discardLogger(),
 		"token",
 		RateLimitConfig{PerMinute: 100, PerDay: 1000},
@@ -161,6 +191,7 @@ func TestReviewReasoningReturnsStructuredVerdict(t *testing.T) {
 			Verdict:         "Верно",
 			ReferenceAnswer: "Эталон",
 		}},
+		temperatureServiceStub{},
 		discardLogger(),
 		"token",
 		RateLimitConfig{PerMinute: 100, PerDay: 1000},
@@ -183,6 +214,7 @@ func TestRunReasoningMapsInvalidMethodError(t *testing.T) {
 	handler := NewHandler(
 		chatServiceStub{},
 		reasoningServiceStub{err: application.ErrInvalidReasoningMethod},
+		temperatureServiceStub{},
 		discardLogger(),
 		"token",
 		RateLimitConfig{PerMinute: 100, PerDay: 1000},
@@ -198,10 +230,61 @@ func TestRunReasoningMapsInvalidMethodError(t *testing.T) {
 	}
 }
 
+func TestRunTemperatureForwardsPromptAndExactValue(t *testing.T) {
+	service := &temperatureServiceRecorder{}
+	handler := NewHandler(
+		chatServiceStub{},
+		reasoningServiceStub{},
+		service,
+		discardLogger(),
+		"token",
+		RateLimitConfig{PerMinute: 100, PerDay: 1000},
+	)
+	request := httptest.NewRequest(http.MethodPost, "/v1/temperature/run", strings.NewReader(`{"prompt":"Придумай название","temperature":0.7}`))
+	request.Header.Set("Authorization", "Bearer token")
+	response := httptest.NewRecorder()
+
+	handler.Routes().ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", response.Code, response.Body.String())
+	}
+	if service.prompt != "Придумай название" || service.temperature != domain.TemperatureBalanced {
+		t.Fatalf("unexpected forwarded values: %+v", service)
+	}
+}
+
+func TestReviewTemperatureReturnsStructuredFeedback(t *testing.T) {
+	handler := NewHandler(
+		chatServiceStub{},
+		reasoningServiceStub{},
+		temperatureServiceStub{review: domain.TemperatureReview{
+			Summary:      "Сравнение готово",
+			BestAccuracy: domain.TemperaturePrecise,
+		}},
+		discardLogger(),
+		"token",
+		RateLimitConfig{PerMinute: 100, PerDay: 1000},
+	)
+	request := httptest.NewRequest(http.MethodPost, "/v1/temperature/review", strings.NewReader(`{"prompt":"Запрос","attempts":[]}`))
+	request.Header.Set("Authorization", "Bearer token")
+	response := httptest.NewRecorder()
+
+	handler.Routes().ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", response.Code, response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), `"summary":"Сравнение готово"`) {
+		t.Fatalf("unexpected response: %s", response.Body.String())
+	}
+}
+
 func TestChatRateLimitAppliesPerClient(t *testing.T) {
 	handler := NewHandler(
 		chatServiceStub{reply: domain.ChatReply{Answer: "Hello"}},
 		reasoningServiceStub{},
+		temperatureServiceStub{},
 		discardLogger(),
 		"token",
 		RateLimitConfig{PerMinute: 1, PerDay: 10},
@@ -236,6 +319,7 @@ func TestChatDailyLimitAppliesAcrossClients(t *testing.T) {
 	handler := NewHandler(
 		chatServiceStub{reply: domain.ChatReply{Answer: "Hello"}},
 		reasoningServiceStub{},
+		temperatureServiceStub{},
 		discardLogger(),
 		"token",
 		RateLimitConfig{PerMinute: 10, PerDay: 1},
@@ -255,6 +339,7 @@ func TestUnauthorizedRequestDoesNotConsumeQuota(t *testing.T) {
 	handler := NewHandler(
 		chatServiceStub{reply: domain.ChatReply{Answer: "Hello"}},
 		reasoningServiceStub{},
+		temperatureServiceStub{},
 		discardLogger(),
 		"token",
 		RateLimitConfig{PerMinute: 1, PerDay: 1},
@@ -273,7 +358,7 @@ func TestUnauthorizedRequestDoesNotConsumeQuota(t *testing.T) {
 }
 
 func newTestHandler(service ChatService) *Handler {
-	return NewHandler(service, reasoningServiceStub{}, discardLogger(), "token", RateLimitConfig{PerMinute: 100, PerDay: 1000})
+	return NewHandler(service, reasoningServiceStub{}, temperatureServiceStub{}, discardLogger(), "token", RateLimitConfig{PerMinute: 100, PerDay: 1000})
 }
 
 func authenticatedRequest(clientIP string) *http.Request {

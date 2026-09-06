@@ -26,12 +26,18 @@ type ReasoningService interface {
 	Review(ctx context.Context, problem string, attempts []domain.ReasoningAttempt) (domain.ReasoningReview, error)
 }
 
+type TemperatureService interface {
+	Run(ctx context.Context, prompt string, temperature domain.Temperature) (domain.TemperatureAttempt, error)
+	Review(ctx context.Context, prompt string, attempts []domain.TemperatureAttempt) (domain.TemperatureReview, error)
+}
+
 type Handler struct {
-	chatService      ChatService
-	reasoningService ReasoningService
-	logger           *slog.Logger
-	appAccessToken   string
-	rateLimiter      *rateLimiter
+	chatService        ChatService
+	reasoningService   ReasoningService
+	temperatureService TemperatureService
+	logger             *slog.Logger
+	appAccessToken     string
+	rateLimiter        *rateLimiter
 }
 
 type RateLimitConfig struct {
@@ -42,16 +48,18 @@ type RateLimitConfig struct {
 func NewHandler(
 	chatService ChatService,
 	reasoningService ReasoningService,
+	temperatureService TemperatureService,
 	logger *slog.Logger,
 	appAccessToken string,
 	rateLimitConfig RateLimitConfig,
 ) *Handler {
 	return &Handler{
-		chatService:      chatService,
-		reasoningService: reasoningService,
-		logger:           logger,
-		appAccessToken:   appAccessToken,
-		rateLimiter:      newRateLimiter(rateLimitConfig.PerMinute, rateLimitConfig.PerDay),
+		chatService:        chatService,
+		reasoningService:   reasoningService,
+		temperatureService: temperatureService,
+		logger:             logger,
+		appAccessToken:     appAccessToken,
+		rateLimiter:        newRateLimiter(rateLimitConfig.PerMinute, rateLimitConfig.PerDay),
 	}
 }
 
@@ -61,7 +69,65 @@ func (h *Handler) Routes() http.Handler {
 	mux.Handle("POST /v1/chat", h.requireAccessToken(h.limitRequests(http.HandlerFunc(h.chat))))
 	mux.Handle("POST /v1/reasoning/run", h.requireAccessToken(h.limitRequests(http.HandlerFunc(h.runReasoning))))
 	mux.Handle("POST /v1/reasoning/review", h.requireAccessToken(h.limitRequests(http.HandlerFunc(h.reviewReasoning))))
+	mux.Handle("POST /v1/temperature/run", h.requireAccessToken(h.limitRequests(http.HandlerFunc(h.runTemperature))))
+	mux.Handle("POST /v1/temperature/review", h.requireAccessToken(h.limitRequests(http.HandlerFunc(h.reviewTemperature))))
 	return h.logging(h.recoverPanic(mux))
+}
+
+type runTemperatureRequest struct {
+	Prompt      string             `json:"prompt"`
+	Temperature domain.Temperature `json:"temperature"`
+}
+
+func (h *Handler) runTemperature(response http.ResponseWriter, request *http.Request) {
+	var payload runTemperatureRequest
+	if err := decodeRequestJSON(response, request, &payload); err != nil {
+		writeAPIError(response, http.StatusBadRequest, "invalid_request", "Request body must contain a valid prompt and temperature.")
+		return
+	}
+
+	attempt, err := h.temperatureService.Run(request.Context(), payload.Prompt, payload.Temperature)
+	if err != nil {
+		h.writeTemperatureError(response, err)
+		return
+	}
+	writeJSON(response, http.StatusOK, attempt)
+}
+
+type reviewTemperatureRequest struct {
+	Prompt   string                      `json:"prompt"`
+	Attempts []domain.TemperatureAttempt `json:"attempts"`
+}
+
+func (h *Handler) reviewTemperature(response http.ResponseWriter, request *http.Request) {
+	var payload reviewTemperatureRequest
+	if err := decodeRequestJSON(response, request, &payload); err != nil {
+		writeAPIError(response, http.StatusBadRequest, "invalid_request", "Request body must contain a valid prompt and attempts.")
+		return
+	}
+
+	review, err := h.temperatureService.Review(request.Context(), payload.Prompt, payload.Attempts)
+	if err != nil {
+		h.writeTemperatureError(response, err)
+		return
+	}
+	writeJSON(response, http.StatusOK, review)
+}
+
+func (h *Handler) writeTemperatureError(response http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, application.ErrEmptyTemperaturePrompt):
+		writeAPIError(response, http.StatusBadRequest, "empty_prompt", "Prompt is required.")
+	case errors.Is(err, application.ErrTemperaturePromptTooLong):
+		writeAPIError(response, http.StatusRequestEntityTooLarge, "prompt_too_long", "Prompt is too long.")
+	case errors.Is(err, application.ErrInvalidTemperature):
+		writeAPIError(response, http.StatusBadRequest, "invalid_temperature", "Temperature must be 0, 0.7, or 1.2.")
+	case errors.Is(err, application.ErrInvalidTemperatureRuns):
+		writeAPIError(response, http.StatusBadRequest, "invalid_attempts", "Exactly one result for every temperature is required.")
+	default:
+		h.logger.Error("temperature experiment failed", "error", err)
+		writeAPIError(response, http.StatusBadGateway, "upstream_error", "The language model is temporarily unavailable.")
+	}
 }
 
 func (h *Handler) health(response http.ResponseWriter, _ *http.Request) {

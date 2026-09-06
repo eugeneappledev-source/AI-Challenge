@@ -25,6 +25,19 @@ enum AppContainer {
         return ReasoningComparisonViewModel(compareStrategies: compareStrategies)
     }
 
+    static func makeTemperatureViewModel() -> TemperatureComparisonViewModel {
+        let configuration = AppConfiguration.live()
+        let httpClient = URLSessionHTTPClient(session: .shared)
+        let api = TemperatureAPI(
+            baseURL: configuration.baseURL,
+            accessToken: configuration.accessToken,
+            httpClient: httpClient
+        )
+        let repository = DefaultTemperatureRepository(api: api)
+        let compareTemperatures = CompareTemperaturesUseCase(repository: repository)
+        return TemperatureComparisonViewModel(compareTemperatures: compareTemperatures)
+    }
+
     private static func makeSendMessageUseCase() -> SendMessageUseCase {
         let configuration = AppConfiguration.live()
         let httpClient = URLSessionHTTPClient(session: .shared)

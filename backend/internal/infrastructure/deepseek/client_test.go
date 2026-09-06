@@ -187,3 +187,34 @@ func TestGenerateUsesReasoningPromptsAndOptionalJSONControls(t *testing.T) {
 		t.Fatalf("unexpected response: %+v", response)
 	}
 }
+
+func TestGenerateSendsExplicitZeroTemperature(t *testing.T) {
+	httpClient := &httpClientStub{response: &http.Response{
+		StatusCode: http.StatusOK,
+		Body: io.NopCloser(strings.NewReader(`{
+			"model":"deepseek-v4-flash",
+			"choices":[{"message":{"role":"assistant","content":"Ответ"},"finish_reason":"stop"}],
+			"usage":{"prompt_tokens":2,"completion_tokens":1,"total_tokens":3}
+		}`)),
+	}}
+	client := NewClient(Config{
+		APIURL: "https://example.com/chat/completions", APIKey: "secret", Model: "model", HTTPClient: httpClient,
+	})
+	temperature := 0.0
+
+	_, err := client.Generate(context.Background(), domain.ModelRequest{
+		SystemPrompt: "System", UserPrompt: "Prompt", Temperature: &temperature,
+	})
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(httpClient.body), &payload); err != nil {
+		t.Fatalf("decode captured request: %v", err)
+	}
+	value, exists := payload["temperature"]
+	if !exists || value != 0.0 {
+		t.Fatalf("expected explicit temperature 0, got %v (exists=%v)", value, exists)
+	}
+}

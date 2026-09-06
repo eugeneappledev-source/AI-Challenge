@@ -61,6 +61,7 @@ type chatCompletionRequest struct {
 	Thinking       thinkingConfig          `json:"thinking"`
 	ResponseFormat *responseFormat         `json:"response_format,omitempty"`
 	MaxTokens      int                     `json:"max_tokens,omitempty"`
+	Temperature    *float64                `json:"temperature,omitempty"`
 	Stream         bool                    `json:"stream"`
 }
 
@@ -117,10 +118,11 @@ func (c *Client) Complete(ctx context.Context, completionRequest domain.Completi
 
 func (c *Client) Generate(ctx context.Context, modelRequest domain.ModelRequest) (domain.ModelResponse, error) {
 	payload := chatCompletionRequest{
-		Model:     c.config.Model,
-		Thinking:  thinkingConfig{Type: "disabled"},
-		MaxTokens: modelRequest.MaxTokens,
-		Stream:    false,
+		Model:       c.config.Model,
+		Thinking:    thinkingConfig{Type: "disabled"},
+		MaxTokens:   modelRequest.MaxTokens,
+		Temperature: modelRequest.Temperature,
+		Stream:      false,
 		Messages: []chatCompletionMessage{
 			{Role: "system", Content: modelRequest.SystemPrompt},
 			{Role: "user", Content: modelRequest.UserPrompt},

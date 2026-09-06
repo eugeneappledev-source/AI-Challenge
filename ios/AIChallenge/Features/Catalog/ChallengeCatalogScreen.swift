@@ -4,6 +4,7 @@ struct ChallengeCatalogScreen: View {
     let dayOneViewModel: DayOneViewModel
     let dayTwoViewModel: ChatViewModel
     let dayThreeViewModel: ReasoningComparisonViewModel
+    let dayFourViewModel: TemperatureComparisonViewModel
 
     private let challenges = ChallengeCatalogItem.all
 
@@ -40,6 +41,8 @@ struct ChallengeCatalogScreen: View {
                     ChatScreen(viewModel: dayTwoViewModel)
                 case .dayThree:
                     ReasoningComparisonScreen(viewModel: dayThreeViewModel)
+                case .dayFour:
+                    TemperatureComparisonScreen(viewModel: dayFourViewModel)
                 }
             }
         }
@@ -60,7 +63,7 @@ struct ChallengeCatalogScreen: View {
                 .font(.system(.largeTitle, design: .rounded, weight: .bold))
                 .minimumScaleFactor(0.82)
 
-            Text("Одно приложение развивается вместе с заданиями — от первого API-запроса до сравнения разных способов рассуждения.")
+            Text("Одно приложение развивается вместе с заданиями — от первого API-запроса до исследования способов рассуждения и параметров генерации.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .lineSpacing(3)
@@ -76,7 +79,7 @@ struct ChallengeCatalogScreen: View {
                     .trim(from: 0, to: 1)
                     .stroke(Color.aiForest, style: StrokeStyle(lineWidth: 7, lineCap: .round))
                     .rotationEffect(.degrees(-90))
-                Text("3/3")
+                Text("4/4")
                     .font(.caption.weight(.bold))
             }
             .frame(width: 54, height: 54)
@@ -84,7 +87,7 @@ struct ChallengeCatalogScreen: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Неделя 1")
                     .font(.headline)
-                Text("Все три задания первой части готовы к проверке.")
+                Text("Все четыре задания первой недели готовы к проверке.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -213,6 +216,7 @@ private enum ChallengeRoute: Hashable {
     case dayOne
     case dayTwo
     case dayThree
+    case dayFour
 }
 
 private struct ChallengeCatalogItem: Identifiable {
@@ -253,6 +257,15 @@ private struct ChallengeCatalogItem: Identifiable {
             tint: .aiCoral,
             status: .completed,
             route: .dayThree
+        ),
+        ChallengeCatalogItem(
+            number: "04",
+            title: "Температура",
+            subtitle: "Один запрос при 0, 0.7 и 1.2 с оценкой точности и креативности.",
+            systemImage: "thermometer.medium",
+            tint: .aiPurple,
+            status: .completed,
+            route: .dayFour
         ),
     ]
 }
