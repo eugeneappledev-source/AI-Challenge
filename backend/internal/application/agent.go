@@ -82,6 +82,56 @@ func (a *Agent) ClearHistory(ctx context.Context, conversationID string) error {
 	return a.store.Clear(ctx, conversationID, a.profile.ID)
 }
 
+const agentContextWindowTokens = 1_000_000
+
+func (a *Agent) TokenMetrics(ctx context.Context, conversationID string) (domain.AgentTokenMetrics, error) {
+	conversation, err := a.History(ctx, conversationID)
+	if err != nil {
+		return domain.AgentTokenMetrics{}, err
+	}
+	metrics := domain.AgentTokenMetrics{
+		ConversationID: conversationID, Model: a.profile.Model, MessageCount: len(conversation.Messages),
+		ContextWindowTokens: agentContextWindowTokens,
+	}
+	for _, message := range conversation.Messages {
+		metrics.HistoryEstimatedTokens += estimateTokens(message.Content)
+		if message.Role == "user" {
+			metrics.CurrentMessageEstimatedTokens = estimateTokens(message.Content)
+		}
+		if message.Usage != nil {
+			usage := message.Usage
+			metrics.LastContextPromptTokens = usage.PromptTokens
+			metrics.LastResponseTokens = usage.CompletionTokens
+			metrics.CumulativePromptTokens += usage.PromptTokens
+			metrics.CumulativeResponseTokens += usage.CompletionTokens
+			metrics.CumulativeTotalTokens += usage.TotalTokens
+			cacheMiss := usage.PromptCacheMissTokens
+			if cacheMiss == 0 && usage.PromptCacheHitTokens == 0 {
+				cacheMiss = usage.PromptTokens
+			}
+			metrics.EstimatedCostUSD += float64(usage.PromptCacheHitTokens)*0.006/1_000_000 + float64(cacheMiss)*0.30/1_000_000 + float64(usage.CompletionTokens)*1.20/1_000_000
+		}
+	}
+	metrics.EstimatedRemainingTokens = agentContextWindowTokens - metrics.HistoryEstimatedTokens
+	if metrics.EstimatedRemainingTokens < 0 {
+		metrics.EstimatedRemainingTokens = 0
+	}
+	metrics.Scenarios = []domain.TokenScenario{
+		{ID: "short", Title: "Короткий диалог", MessageCount: 2, EstimatedTokens: 120, Accepted: true, Outcome: "Контекст мал: запрос быстрый и дешёвый."},
+		{ID: "long", Title: "Длинный диалог", MessageCount: 40, EstimatedTokens: 12_000, Accepted: true, Outcome: "Каждый следующий запрос повторно оплачивает растущую историю."},
+		{ID: "overflow", Title: "Переполнение", MessageCount: 3200, EstimatedTokens: agentContextWindowTokens + 1, Accepted: false, Outcome: "Заблокировано до API: context_length_exceeded."},
+	}
+	return metrics, nil
+}
+
+func estimateTokens(value string) int {
+	runes := utf8.RuneCountInString(value)
+	if runes == 0 {
+		return 0
+	}
+	return (runes + 2) / 3
+}
+
 func (a *Agent) respond(ctx context.Context, conversationID string, history []domain.AgentMessage, input string) (domain.AgentExchange, error) {
 	normalized := strings.TrimSpace(input)
 	if normalized == "" {

@@ -41,7 +41,9 @@ func (s *ConversationStore) migrate(ctx context.Context) error {
 			created_at TEXT NOT NULL,
 			prompt_tokens INTEGER,
 			completion_tokens INTEGER,
-			total_tokens INTEGER
+			total_tokens INTEGER,
+			cache_hit_tokens INTEGER,
+			cache_miss_tokens INTEGER
 		);
 		CREATE INDEX IF NOT EXISTS idx_agent_messages_conversation
 		ON agent_messages(conversation_id, agent_id, sequence);
@@ -54,7 +56,7 @@ func (s *ConversationStore) migrate(ctx context.Context) error {
 
 func (s *ConversationStore) Load(ctx context.Context, conversationID, agentID string) (domain.AgentConversation, error) {
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT message_id, role, content, created_at, prompt_tokens, completion_tokens, total_tokens
+		SELECT message_id, role, content, created_at, prompt_tokens, completion_tokens, total_tokens, cache_hit_tokens, cache_miss_tokens
 		FROM agent_messages WHERE conversation_id = ? AND agent_id = ?
 		ORDER BY sequence`, conversationID, agentID)
 	if err != nil {
@@ -66,8 +68,8 @@ func (s *ConversationStore) Load(ctx context.Context, conversationID, agentID st
 	for rows.Next() {
 		var message domain.AgentMessage
 		var createdAt string
-		var promptTokens, completionTokens, totalTokens sql.NullInt64
-		if err := rows.Scan(&message.ID, &message.Role, &message.Content, &createdAt, &promptTokens, &completionTokens, &totalTokens); err != nil {
+		var promptTokens, completionTokens, totalTokens, cacheHitTokens, cacheMissTokens sql.NullInt64
+		if err := rows.Scan(&message.ID, &message.Role, &message.Content, &createdAt, &promptTokens, &completionTokens, &totalTokens, &cacheHitTokens, &cacheMissTokens); err != nil {
 			return domain.AgentConversation{}, fmt.Errorf("scan conversation: %w", err)
 		}
 		message.CreatedAt, err = time.Parse(time.RFC3339Nano, createdAt)
@@ -75,7 +77,10 @@ func (s *ConversationStore) Load(ctx context.Context, conversationID, agentID st
 			return domain.AgentConversation{}, fmt.Errorf("parse message time: %w", err)
 		}
 		if totalTokens.Valid {
-			message.Usage = &domain.Usage{PromptTokens: int(promptTokens.Int64), CompletionTokens: int(completionTokens.Int64), TotalTokens: int(totalTokens.Int64)}
+			message.Usage = &domain.Usage{
+				PromptTokens: int(promptTokens.Int64), CompletionTokens: int(completionTokens.Int64), TotalTokens: int(totalTokens.Int64),
+				PromptCacheHitTokens: int(cacheHitTokens.Int64), PromptCacheMissTokens: int(cacheMissTokens.Int64),
+			}
 		}
 		conversation.Messages = append(conversation.Messages, message)
 		updatedAt := message.CreatedAt
@@ -94,14 +99,15 @@ func (s *ConversationStore) Append(ctx context.Context, conversationID, agentID 
 	}
 	defer tx.Rollback()
 	for _, message := range messages {
-		var promptTokens, completionTokens, totalTokens any
+		var promptTokens, completionTokens, totalTokens, cacheHitTokens, cacheMissTokens any
 		if message.Usage != nil {
 			promptTokens, completionTokens, totalTokens = message.Usage.PromptTokens, message.Usage.CompletionTokens, message.Usage.TotalTokens
+			cacheHitTokens, cacheMissTokens = message.Usage.PromptCacheHitTokens, message.Usage.PromptCacheMissTokens
 		}
 		if _, err := tx.ExecContext(ctx, `INSERT INTO agent_messages
-			(conversation_id, agent_id, message_id, role, content, created_at, prompt_tokens, completion_tokens, total_tokens)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			conversationID, agentID, message.ID, message.Role, message.Content, message.CreatedAt.Format(time.RFC3339Nano), promptTokens, completionTokens, totalTokens,
+			(conversation_id, agent_id, message_id, role, content, created_at, prompt_tokens, completion_tokens, total_tokens, cache_hit_tokens, cache_miss_tokens)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			conversationID, agentID, message.ID, message.Role, message.Content, message.CreatedAt.Format(time.RFC3339Nano), promptTokens, completionTokens, totalTokens, cacheHitTokens, cacheMissTokens,
 		); err != nil {
 			return fmt.Errorf("append message: %w", err)
 		}

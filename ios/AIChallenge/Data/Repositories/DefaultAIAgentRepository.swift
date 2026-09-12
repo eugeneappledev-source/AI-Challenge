@@ -1,4 +1,4 @@
-struct DefaultAIAgentRepository: AIAgentRepository, AgentMemoryRepository {
+struct DefaultAIAgentRepository: AIAgentRepository, AgentMemoryRepository, AgentTokenRepository {
     private let api: AIAgentAPI
 
     init(api: AIAgentAPI) { self.api = api }
@@ -10,4 +10,5 @@ struct DefaultAIAgentRepository: AIAgentRepository, AgentMemoryRepository {
         try await api.send(message: message, conversationID: conversationID)
     }
     func clearHistory(conversationID: String) async throws { try await api.clearHistory(conversationID: conversationID) }
+    func tokenMetrics(conversationID: String) async throws -> AgentTokenMetrics { try await api.tokenMetrics(conversationID: conversationID) }
 }

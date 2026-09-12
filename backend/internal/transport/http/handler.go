@@ -42,6 +42,7 @@ type AgentService interface {
 	RespondInConversation(ctx context.Context, conversationID, input string) (domain.AgentExchange, error)
 	History(ctx context.Context, conversationID string) (domain.AgentConversation, error)
 	ClearHistory(ctx context.Context, conversationID string) error
+	TokenMetrics(ctx context.Context, conversationID string) (domain.AgentTokenMetrics, error)
 }
 
 type Handler struct {
@@ -100,6 +101,7 @@ func (h *Handler) Routes() http.Handler {
 		mux.Handle("POST /v1/agent/message", h.requireAccessToken(h.limitRequests(http.HandlerFunc(h.agentMessage))))
 		mux.Handle("GET /v1/agent/history", h.requireAccessToken(http.HandlerFunc(h.agentHistory)))
 		mux.Handle("DELETE /v1/agent/history", h.requireAccessToken(http.HandlerFunc(h.clearAgentHistory)))
+		mux.Handle("GET /v1/agent/tokens", h.requireAccessToken(http.HandlerFunc(h.agentTokens)))
 	}
 	return h.logging(h.recoverPanic(mux))
 }
@@ -156,6 +158,15 @@ func (h *Handler) clearAgentHistory(response http.ResponseWriter, request *http.
 		return
 	}
 	response.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) agentTokens(response http.ResponseWriter, request *http.Request) {
+	metrics, err := h.agentService.TokenMetrics(request.Context(), request.URL.Query().Get("conversationId"))
+	if err != nil {
+		h.writeAgentMemoryError(response, err)
+		return
+	}
+	writeJSON(response, http.StatusOK, metrics)
 }
 
 func (h *Handler) writeAgentMemoryError(response http.ResponseWriter, err error) {

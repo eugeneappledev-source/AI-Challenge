@@ -12,6 +12,7 @@
 		0EC9FB3B4AF0DD072D7B917B /* TemperatureComparisonViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7EF0CF9466A93AFBF6BACA96 /* TemperatureComparisonViewModel.swift */; };
 		1209B989EB004DB9BC9095B8 /* NetworkError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B0D604ACA157688B9ED94E9 /* NetworkError.swift */; };
 		1D28729201F77FC10F66F6D9 /* AgentMemoryScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2F4E1A8FAC672A36648719A /* AgentMemoryScreen.swift */; };
+		2F49C7ACA709D49AE215EB86 /* TokenLabViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AA1466E1519DD6AEAEF8BF4 /* TokenLabViewModel.swift */; };
 		32A8034ECDAE24A1E22EDAC2 /* ChatRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C9A95066060B54EE80880DF /* ChatRepository.swift */; };
 		34EA43F78A7EB7B91BC1178C /* ContinueAgentConversationUseCase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3381483DE01CD2640D4B2C6A /* ContinueAgentConversationUseCase.swift */; };
 		36162082E2BBEEB2CB2521F9 /* AIAgentScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AF56C9C038E67352BF10FDD /* AIAgentScreen.swift */; };
@@ -21,7 +22,9 @@
 		4C0604327534D0798FA71565 /* ReasoningDTO.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B63C6D8522D6987646AAF22 /* ReasoningDTO.swift */; };
 		4DBB3170735349156CEE7403 /* TemperatureExperiment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FEF53FAE79CA7E8056DC62E /* TemperatureExperiment.swift */; };
 		506E3AC9C1B51545DCDBACC4 /* DefaultAIAgentRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBD8E5FC1CF3DB26DD54995F /* DefaultAIAgentRepository.swift */; };
+		59C55C87B3C6D05238089542 /* InspectAgentTokensUseCase.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5F8360524AB83CDA0C7719E /* InspectAgentTokensUseCase.swift */; };
 		5C235B3074A031ABD793A79D /* ReasoningComparisonViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B25FD3415E71DB3BB9CA4C8E /* ReasoningComparisonViewModel.swift */; };
+		605B65B0CFB8F7266C4DC63C /* AgentTokenRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCFC3C561551E80AA50DA24D /* AgentTokenRepository.swift */; };
 		60DDE5D2C9C3116E28B9047C /* ChatAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD84298F8EFDD5862E47D2CF /* ChatAPI.swift */; };
 		612DA54276720C064FA50075 /* MessageBubble.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CA9058D4B72C152E8B04242 /* MessageBubble.swift */; };
 		6331BD4B0B3E9ED4A2992797 /* CompareResponsesUseCase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B537704FA489ED5C4C0DDBE /* CompareResponsesUseCase.swift */; };
@@ -57,6 +60,7 @@
 		DA775C78ACEEF210ECFEDA4A /* ChatResponseDTO.swift in Sources */ = {isa = PBXBuildFile; fileRef = 098F1179F29CB1F9A90D9FA1 /* ChatResponseDTO.swift */; };
 		DA8E36036FD6AD2D5C7C30BB /* AgentMemoryRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85D10D211FE6889A1489EA5B /* AgentMemoryRepository.swift */; };
 		E0791C8005906EE0FDE57C23 /* ReasoningRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 586AB23B233FAFA0DE93BC42 /* ReasoningRepository.swift */; };
+		E110BA32E68F9DD2E76061B5 /* TokenLabScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A3D36CE9CC39037AEB7F8F7 /* TokenLabScreen.swift */; };
 		E324CEC46B108EE11F3DC1C6 /* URLSessionHTTPClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27EDDF06D0B255A968C0DE66 /* URLSessionHTTPClient.swift */; };
 		E360A02A562B5290187BC268 /* ReasoningComparisonScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5955D438481D8C999503A87E /* ReasoningComparisonScreen.swift */; };
 		E3DE98C0FD9F7CB942811927 /* TalkToAgentUseCase.swift in Sources */ = {isa = PBXBuildFile; fileRef = A73908A5EECDD575D8F354F2 /* TalkToAgentUseCase.swift */; };
@@ -85,6 +89,7 @@
 		07A5CE63A6DEC2C16BDC596C /* CompareReasoningStrategiesUseCase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompareReasoningStrategiesUseCase.swift; sourceTree = "<group>"; };
 		080CAD5C83B71FC309FBEAD5 /* AIChallenge.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = AIChallenge.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		098F1179F29CB1F9A90D9FA1 /* ChatResponseDTO.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatResponseDTO.swift; sourceTree = "<group>"; };
+		0AA1466E1519DD6AEAEF8BF4 /* TokenLabViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenLabViewModel.swift; sourceTree = "<group>"; };
 		1887505C71BBAAD53C8934B6 /* AIAgentRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIAgentRepository.swift; sourceTree = "<group>"; };
 		1BEAE94D7978BBC3F2FEB038 /* TemperatureDTO.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemperatureDTO.swift; sourceTree = "<group>"; };
 		1CA9058D4B72C152E8B04242 /* MessageBubble.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageBubble.swift; sourceTree = "<group>"; };
@@ -112,6 +117,7 @@
 		7474F21444CBA42791A64ECD /* AIAgent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIAgent.swift; sourceTree = "<group>"; };
 		78D3A8A3317FC05C96705311 /* AIChallengeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIChallengeApp.swift; sourceTree = "<group>"; };
 		7A0C2451302D12D4A183E3B6 /* AITheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AITheme.swift; sourceTree = "<group>"; };
+		7A3D36CE9CC39037AEB7F8F7 /* TokenLabScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenLabScreen.swift; sourceTree = "<group>"; };
 		7B537704FA489ED5C4C0DDBE /* CompareResponsesUseCase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompareResponsesUseCase.swift; sourceTree = "<group>"; };
 		7B63C6D8522D6987646AAF22 /* ReasoningDTO.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReasoningDTO.swift; sourceTree = "<group>"; };
 		7EF0CF9466A93AFBF6BACA96 /* TemperatureComparisonViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemperatureComparisonViewModel.swift; sourceTree = "<group>"; };
@@ -130,6 +136,7 @@
 		BFB5D3A07ED3F5C19FF10640 /* ModelComparisonScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelComparisonScreen.swift; sourceTree = "<group>"; };
 		C18F126DC0877445FF3080E7 /* TemperatureRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemperatureRepository.swift; sourceTree = "<group>"; };
 		C3846B620896C3F8660B5C39 /* MessageInputView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageInputView.swift; sourceTree = "<group>"; };
+		C5F8360524AB83CDA0C7719E /* InspectAgentTokensUseCase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InspectAgentTokensUseCase.swift; sourceTree = "<group>"; };
 		CBD09E10713C3F9A3A16F9CC /* ModelBenchmarkDTO.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelBenchmarkDTO.swift; sourceTree = "<group>"; };
 		CC84667B64D49DA54EDC085D /* DefaultTemperatureRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DefaultTemperatureRepository.swift; sourceTree = "<group>"; };
 		CEEEFC5C9B609A926FBF7467 /* APIErrorDTO.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIErrorDTO.swift; sourceTree = "<group>"; };
@@ -145,6 +152,7 @@
 		E6872C26C340A28BBC703E14 /* HTTPClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTTPClient.swift; sourceTree = "<group>"; };
 		E6B0F6994375C702E449A2EB /* Reasoning.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Reasoning.swift; sourceTree = "<group>"; };
 		EBD8E5FC1CF3DB26DD54995F /* DefaultAIAgentRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DefaultAIAgentRepository.swift; sourceTree = "<group>"; };
+		FCFC3C561551E80AA50DA24D /* AgentTokenRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentTokenRepository.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -172,6 +180,14 @@
 				A42454ADD3BF1BBD16604F56 /* Networking */,
 			);
 			path = Core;
+			sourceTree = "<group>";
+		};
+		1BBE8A18B371BDA1187C2A2A /* Presentation */ = {
+			isa = PBXGroup;
+			children = (
+				0AA1466E1519DD6AEAEF8BF4 /* TokenLabViewModel.swift */,
+			);
+			path = Presentation;
 			sourceTree = "<group>";
 		};
 		1F5840DC155BF248AEAB20A0 /* Products */ = {
@@ -311,6 +327,14 @@
 			path = Models;
 			sourceTree = "<group>";
 		};
+		7056EF4CDC38DBC2F49E7B74 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				7A3D36CE9CC39037AEB7F8F7 /* TokenLabScreen.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
 		822703F4B64F66AE7AAEAE5C /* AIChallengeTests */ = {
 			isa = PBXGroup;
 			children = (
@@ -355,6 +379,7 @@
 				2153D588DD28876E7C0F3835 /* Models */,
 				E056BD6DCAFD8A1B3594D7D5 /* Reasoning */,
 				D4354656B8FEFBD4AFD7C432 /* Temperature */,
+				CD66BF86A379845EA8CAE809 /* TokenLab */,
 			);
 			path = Features;
 			sourceTree = "<group>";
@@ -373,6 +398,7 @@
 			isa = PBXGroup;
 			children = (
 				85D10D211FE6889A1489EA5B /* AgentMemoryRepository.swift */,
+				FCFC3C561551E80AA50DA24D /* AgentTokenRepository.swift */,
 				1887505C71BBAAD53C8934B6 /* AIAgentRepository.swift */,
 				4C9A95066060B54EE80880DF /* ChatRepository.swift */,
 				D03352D3690C93DEF873C742 /* ModelBenchmarkRepository.swift */,
@@ -407,10 +433,20 @@
 				7B537704FA489ED5C4C0DDBE /* CompareResponsesUseCase.swift */,
 				23F4530E659F2497A349EA01 /* CompareTemperaturesUseCase.swift */,
 				3381483DE01CD2640D4B2C6A /* ContinueAgentConversationUseCase.swift */,
+				C5F8360524AB83CDA0C7719E /* InspectAgentTokensUseCase.swift */,
 				21D930733FCB9A5F7108684C /* SendMessageUseCase.swift */,
 				A73908A5EECDD575D8F354F2 /* TalkToAgentUseCase.swift */,
 			);
 			path = UseCases;
+			sourceTree = "<group>";
+		};
+		CD66BF86A379845EA8CAE809 /* TokenLab */ = {
+			isa = PBXGroup;
+			children = (
+				1BBE8A18B371BDA1187C2A2A /* Presentation */,
+				7056EF4CDC38DBC2F49E7B74 /* Views */,
+			);
+			path = TokenLab;
 			sourceTree = "<group>";
 		};
 		D12AD163774BAD0DDD8316E0 /* Views */ = {
@@ -616,6 +652,7 @@
 				DA8E36036FD6AD2D5C7C30BB /* AgentMemoryRepository.swift in Sources */,
 				1D28729201F77FC10F66F6D9 /* AgentMemoryScreen.swift in Sources */,
 				0BA7451034592F0FC76CB350 /* AgentMemoryViewModel.swift in Sources */,
+				605B65B0CFB8F7266C4DC63C /* AgentTokenRepository.swift in Sources */,
 				9EBFBBD804C25BD5145B6435 /* AppConfiguration.swift in Sources */,
 				A60D702F0532742538FEBCCA /* AppContainer.swift in Sources */,
 				D355D6526FCD6ECAED6DFFC8 /* ChallengeCatalogScreen.swift in Sources */,
@@ -640,6 +677,7 @@
 				F12614CF1EFC1309A81A63B3 /* DefaultReasoningRepository.swift in Sources */,
 				F0C891123F8760AA4897C64C /* DefaultTemperatureRepository.swift in Sources */,
 				831C043920DC745D1DC52A52 /* HTTPClient.swift in Sources */,
+				59C55C87B3C6D05238089542 /* InspectAgentTokensUseCase.swift in Sources */,
 				612DA54276720C064FA50075 /* MessageBubble.swift in Sources */,
 				D06BB70DF65BCB43D1BE7DF9 /* MessageInputView.swift in Sources */,
 				FED79E710D13B0FF79C2B93B /* ModelBenchmark.swift in Sources */,
@@ -663,6 +701,8 @@
 				A25826D84142952A7312BD66 /* TemperatureDTO.swift in Sources */,
 				4DBB3170735349156CEE7403 /* TemperatureExperiment.swift in Sources */,
 				78C72BA25741CB01929E920C /* TemperatureRepository.swift in Sources */,
+				E110BA32E68F9DD2E76061B5 /* TokenLabScreen.swift in Sources */,
+				2F49C7ACA709D49AE215EB86 /* TokenLabViewModel.swift in Sources */,
 				E324CEC46B108EE11F3DC1C6 /* URLSessionHTTPClient.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

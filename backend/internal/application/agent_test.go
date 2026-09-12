@@ -113,3 +113,29 @@ func TestAgentRestoresHistoryBeforeCallingModelAndPersistsExchange(t *testing.T)
 		t.Fatalf("unexpected conversation metadata: %+v", exchange)
 	}
 }
+
+func TestAgentTokenMetricsSeparateEstimatesFromProviderUsage(t *testing.T) {
+	store := &conversationStoreStub{conversation: domain.AgentConversation{Messages: []domain.AgentMessage{
+		{ID: "u1", Role: "user", Content: "Короткий вопрос"},
+		{ID: "a1", Role: "assistant", Content: "Короткий ответ", Usage: &domain.Usage{
+			PromptTokens: 100, CompletionTokens: 20, TotalTokens: 120,
+			PromptCacheHitTokens: 60, PromptCacheMissTokens: 40,
+		}},
+	}}}
+	agent := NewAgent(domain.AgentProfile{ID: "mentor", Model: "deepseek-flash"}, &agentModelRecorder{}, 4000).WithMemory(store)
+
+	metrics, err := agent.TokenMetrics(context.Background(), "c1")
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if metrics.CurrentMessageEstimatedTokens == 0 || metrics.HistoryEstimatedTokens == 0 {
+		t.Fatalf("expected explicit local estimates, got %+v", metrics)
+	}
+	if metrics.LastContextPromptTokens != 100 || metrics.LastResponseTokens != 20 || metrics.CumulativeTotalTokens != 120 {
+		t.Fatalf("expected exact provider usage, got %+v", metrics)
+	}
+	if metrics.EstimatedCostUSD <= 0 || len(metrics.Scenarios) != 3 || metrics.Scenarios[2].Accepted {
+		t.Fatalf("expected cost and blocked overflow scenario, got %+v", metrics)
+	}
+}

@@ -38,3 +38,29 @@ type AgentConversation struct {
 	Messages  []AgentMessage `json:"messages"`
 	UpdatedAt *time.Time     `json:"updatedAt,omitempty"`
 }
+
+type AgentTokenMetrics struct {
+	ConversationID                string          `json:"conversationId"`
+	Model                         string          `json:"model"`
+	MessageCount                  int             `json:"messageCount"`
+	CurrentMessageEstimatedTokens int             `json:"currentMessageEstimatedTokens"`
+	LastContextPromptTokens       int             `json:"lastContextPromptTokens"`
+	LastResponseTokens            int             `json:"lastResponseTokens"`
+	HistoryEstimatedTokens        int             `json:"historyEstimatedTokens"`
+	CumulativePromptTokens        int             `json:"cumulativePromptTokens"`
+	CumulativeResponseTokens      int             `json:"cumulativeResponseTokens"`
+	CumulativeTotalTokens         int             `json:"cumulativeTotalTokens"`
+	EstimatedCostUSD              float64         `json:"estimatedCostUSD"`
+	ContextWindowTokens           int             `json:"contextWindowTokens"`
+	EstimatedRemainingTokens      int             `json:"estimatedRemainingTokens"`
+	Scenarios                     []TokenScenario `json:"scenarios"`
+}
+
+type TokenScenario struct {
+	ID              string `json:"id"`
+	Title           string `json:"title"`
+	MessageCount    int    `json:"messageCount"`
+	EstimatedTokens int    `json:"estimatedTokens"`
+	Accepted        bool   `json:"accepted"`
+	Outcome         string `json:"outcome"`
+}

@@ -16,7 +16,7 @@ func TestConversationSurvivesStoreReopen(t *testing.T) {
 		t.Fatalf("open: %v", err)
 	}
 	now := time.Date(2026, 9, 8, 12, 0, 0, 0, time.UTC)
-	usage := domain.Usage{PromptTokens: 10, CompletionTokens: 4, TotalTokens: 14}
+	usage := domain.Usage{PromptTokens: 10, CompletionTokens: 4, TotalTokens: 14, PromptCacheHitTokens: 6, PromptCacheMissTokens: 4}
 	err = store.Append(context.Background(), "c1", "mentor",
 		domain.AgentMessage{ID: "u1", Role: "user", Content: "Меня зовут Женя", CreatedAt: now},
 		domain.AgentMessage{ID: "a1", Role: "assistant", Content: "Запомнил", CreatedAt: now.Add(time.Nanosecond), Usage: &usage},
@@ -37,7 +37,7 @@ func TestConversationSurvivesStoreReopen(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
-	if len(conversation.Messages) != 2 || conversation.Messages[0].Content != "Меня зовут Женя" || conversation.Messages[1].Usage.TotalTokens != 14 {
+	if len(conversation.Messages) != 2 || conversation.Messages[0].Content != "Меня зовут Женя" || conversation.Messages[1].Usage.TotalTokens != 14 || conversation.Messages[1].Usage.PromptCacheHitTokens != 6 {
 		t.Fatalf("unexpected restored conversation: %+v", conversation)
 	}
 

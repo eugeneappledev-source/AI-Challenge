@@ -9,6 +9,7 @@ struct AIChallengeApp: App {
     @State private var dayFiveViewModel = AppContainer.makeModelComparisonViewModel()
     @State private var daySixViewModel = AppContainer.makeAgentViewModel()
     @State private var daySevenViewModel = AppContainer.makeAgentMemoryViewModel()
+    @State private var dayEightViewModel = AppContainer.makeTokenLabViewModel()
 
     var body: some Scene {
         WindowGroup {
@@ -19,7 +20,8 @@ struct AIChallengeApp: App {
                 dayFourViewModel: dayFourViewModel,
                 dayFiveViewModel: dayFiveViewModel,
                 daySixViewModel: daySixViewModel,
-                daySevenViewModel: daySevenViewModel
+                daySevenViewModel: daySevenViewModel,
+                dayEightViewModel: dayEightViewModel
             )
         }
     }

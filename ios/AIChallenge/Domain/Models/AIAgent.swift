@@ -42,3 +42,29 @@ struct AIAgentConversation: Codable, Equatable, Sendable {
     let messages: [AIAgentMessage]
     let updatedAt: Date?
 }
+
+struct AgentTokenMetrics: Codable, Equatable, Sendable {
+    let conversationId: String
+    let model: String
+    let messageCount: Int
+    let currentMessageEstimatedTokens: Int
+    let lastContextPromptTokens: Int
+    let lastResponseTokens: Int
+    let historyEstimatedTokens: Int
+    let cumulativePromptTokens: Int
+    let cumulativeResponseTokens: Int
+    let cumulativeTotalTokens: Int
+    let estimatedCostUSD: Double
+    let contextWindowTokens: Int
+    let estimatedRemainingTokens: Int
+    let scenarios: [TokenScenario]
+}
+
+struct TokenScenario: Codable, Equatable, Identifiable, Sendable {
+    let id: String
+    let title: String
+    let messageCount: Int
+    let estimatedTokens: Int
+    let accepted: Bool
+    let outcome: String
+}

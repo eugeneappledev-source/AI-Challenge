@@ -8,6 +8,7 @@ struct ChallengeCatalogScreen: View {
     let dayFiveViewModel: ModelComparisonViewModel
     let daySixViewModel: AIAgentViewModel
     let daySevenViewModel: AgentMemoryViewModel
+    let dayEightViewModel: TokenLabViewModel
 
     private let challenges = ChallengeCatalogItem.all
 
@@ -52,6 +53,8 @@ struct ChallengeCatalogScreen: View {
                     AIAgentScreen(viewModel: daySixViewModel)
                 case .daySeven:
                     AgentMemoryScreen(viewModel: daySevenViewModel)
+                case .dayEight:
+                    TokenLabScreen(viewModel: dayEightViewModel)
                 }
             }
         }
@@ -88,7 +91,7 @@ struct ChallengeCatalogScreen: View {
                     .trim(from: 0, to: 1)
                     .stroke(Color.aiForest, style: StrokeStyle(lineWidth: 7, lineCap: .round))
                     .rotationEffect(.degrees(-90))
-                Text("7/9")
+                Text("8/9")
                     .font(.caption.weight(.bold))
             }
             .frame(width: 54, height: 54)
@@ -229,6 +232,7 @@ private enum ChallengeRoute: Hashable {
     case dayFive
     case daySix
     case daySeven
+    case dayEight
 }
 
 private struct ChallengeCatalogItem: Identifiable {
@@ -305,6 +309,15 @@ private struct ChallengeCatalogItem: Identifiable {
             tint: .aiPurple,
             status: .completed,
             route: .daySeven
+        ),
+        ChallengeCatalogItem(
+            number: "08",
+            title: "Работа с токенами",
+            subtitle: "Usage запроса, истории и ответа, стоимость и переполнение.",
+            systemImage: "number.square.fill",
+            tint: .aiBlue,
+            status: .completed,
+            route: .dayEight
         ),
     ]
 }

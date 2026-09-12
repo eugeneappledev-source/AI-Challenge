@@ -52,6 +52,17 @@ struct AIAgentAPI: Sendable {
         }
     }
 
+    func tokenMetrics(conversationID: String) async throws -> AgentTokenMetrics {
+        var components = URLComponents(url: baseURL.appending(path: "v1/agent/tokens"), resolvingAgainstBaseURL: false)
+        components?.queryItems = [URLQueryItem(name: "conversationId", value: conversationID)]
+        guard let url = components?.url else { throw NetworkError.invalidResponse }
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 30
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        authorize(&request)
+        return try await perform(request, as: AgentTokenMetrics.self)
+    }
+
     private func send(message: String, conversationID: String?) async throws -> AIAgentExchange {
         var request = URLRequest(url: baseURL.appending(path: "v1/agent/message"))
         request.httpMethod = "POST"

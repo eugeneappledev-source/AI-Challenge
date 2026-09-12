@@ -82,6 +82,27 @@ enum AppContainer {
         )
     }
 
+    static func makeTokenLabViewModel() -> TokenLabViewModel {
+        let configuration = AppConfiguration.live()
+        let api = AIAgentAPI(
+            baseURL: configuration.baseURL,
+            accessToken: configuration.accessToken,
+            httpClient: URLSessionHTTPClient(session: .shared)
+        )
+        return TokenLabViewModel(
+            useCase: InspectAgentTokensUseCase(repository: DefaultAIAgentRepository(api: api)),
+            conversationID: stableConversationID(for: "day08")
+        )
+    }
+
+    private static func stableConversationID(for day: String) -> String {
+        let key = "\(day).conversationID"
+        if let saved = UserDefaults.standard.string(forKey: key) { return saved }
+        let value = "ios-\(day)-" + UUID().uuidString.lowercased()
+        UserDefaults.standard.set(value, forKey: key)
+        return value
+    }
+
     private static func makeSendMessageUseCase() -> SendMessageUseCase {
         let configuration = AppConfiguration.live()
         let httpClient = URLSessionHTTPClient(session: .shared)
