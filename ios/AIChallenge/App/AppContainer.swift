@@ -61,6 +61,27 @@ enum AppContainer {
         )
     }
 
+    static func makeAgentMemoryViewModel() -> AgentMemoryViewModel {
+        let configuration = AppConfiguration.live()
+        let api = AIAgentAPI(
+            baseURL: configuration.baseURL,
+            accessToken: configuration.accessToken,
+            httpClient: URLSessionHTTPClient(session: .shared)
+        )
+        let key = "day07.conversationID"
+        let conversationID: String
+        if let saved = UserDefaults.standard.string(forKey: key) {
+            conversationID = saved
+        } else {
+            conversationID = "ios-" + UUID().uuidString.lowercased()
+            UserDefaults.standard.set(conversationID, forKey: key)
+        }
+        return AgentMemoryViewModel(
+            useCase: ContinueAgentConversationUseCase(repository: DefaultAIAgentRepository(api: api)),
+            conversationID: conversationID
+        )
+    }
+
     private static func makeSendMessageUseCase() -> SendMessageUseCase {
         let configuration = AppConfiguration.live()
         let httpClient = URLSessionHTTPClient(session: .shared)

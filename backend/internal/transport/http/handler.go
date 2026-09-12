@@ -39,6 +39,9 @@ type ModelBenchmarkService interface {
 type AgentService interface {
 	Profile() domain.AgentProfile
 	Respond(ctx context.Context, input string) (domain.AgentExchange, error)
+	RespondInConversation(ctx context.Context, conversationID, input string) (domain.AgentExchange, error)
+	History(ctx context.Context, conversationID string) (domain.AgentConversation, error)
+	ClearHistory(ctx context.Context, conversationID string) error
 }
 
 type Handler struct {
@@ -95,6 +98,8 @@ func (h *Handler) Routes() http.Handler {
 	if h.agentService != nil {
 		mux.Handle("GET /v1/agent", h.requireAccessToken(http.HandlerFunc(h.agentProfile)))
 		mux.Handle("POST /v1/agent/message", h.requireAccessToken(h.limitRequests(http.HandlerFunc(h.agentMessage))))
+		mux.Handle("GET /v1/agent/history", h.requireAccessToken(http.HandlerFunc(h.agentHistory)))
+		mux.Handle("DELETE /v1/agent/history", h.requireAccessToken(http.HandlerFunc(h.clearAgentHistory)))
 	}
 	return h.logging(h.recoverPanic(mux))
 }
@@ -104,7 +109,8 @@ func (h *Handler) agentProfile(response http.ResponseWriter, _ *http.Request) {
 }
 
 type agentMessageRequest struct {
-	Message string `json:"message"`
+	Message        string `json:"message"`
+	ConversationID string `json:"conversationId,omitempty"`
 }
 
 func (h *Handler) agentMessage(response http.ResponseWriter, request *http.Request) {
@@ -113,7 +119,13 @@ func (h *Handler) agentMessage(response http.ResponseWriter, request *http.Reque
 		writeAPIError(response, http.StatusBadRequest, "invalid_request", "Request body must contain a valid message.")
 		return
 	}
-	exchange, err := h.agentService.Respond(request.Context(), payload.Message)
+	var exchange domain.AgentExchange
+	var err error
+	if strings.TrimSpace(payload.ConversationID) == "" {
+		exchange, err = h.agentService.Respond(request.Context(), payload.Message)
+	} else {
+		exchange, err = h.agentService.RespondInConversation(request.Context(), payload.ConversationID, payload.Message)
+	}
 	if err != nil {
 		switch {
 		case errors.Is(err, application.ErrEmptyAgentMessage):
@@ -127,6 +139,32 @@ func (h *Handler) agentMessage(response http.ResponseWriter, request *http.Reque
 		return
 	}
 	writeJSON(response, http.StatusOK, exchange)
+}
+
+func (h *Handler) agentHistory(response http.ResponseWriter, request *http.Request) {
+	conversation, err := h.agentService.History(request.Context(), request.URL.Query().Get("conversationId"))
+	if err != nil {
+		h.writeAgentMemoryError(response, err)
+		return
+	}
+	writeJSON(response, http.StatusOK, conversation)
+}
+
+func (h *Handler) clearAgentHistory(response http.ResponseWriter, request *http.Request) {
+	if err := h.agentService.ClearHistory(request.Context(), request.URL.Query().Get("conversationId")); err != nil {
+		h.writeAgentMemoryError(response, err)
+		return
+	}
+	response.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) writeAgentMemoryError(response http.ResponseWriter, err error) {
+	if errors.Is(err, application.ErrConversationIDRequired) {
+		writeAPIError(response, http.StatusBadRequest, "conversation_id_required", "Conversation ID is required.")
+		return
+	}
+	h.logger.Error("agent memory failed", "error", err)
+	writeAPIError(response, http.StatusInternalServerError, "memory_error", "Conversation memory is temporarily unavailable.")
 }
 
 type runModelBenchmarkRequest struct {

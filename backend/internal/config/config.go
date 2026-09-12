@@ -16,6 +16,7 @@ const (
 	defaultRatePerMinute   = 10
 	defaultDailyLimit      = 200
 	defaultUpstreamTimeout = 60 * time.Second
+	defaultAgentDBPath     = "agent.db"
 )
 
 type Config struct {
@@ -29,6 +30,7 @@ type Config struct {
 	RateLimitPerMinute   int
 	DailyRequestLimit    int
 	UpstreamTimeout      time.Duration
+	AgentDBPath          string
 }
 
 func Load() (Config, error) {
@@ -61,6 +63,7 @@ func Load() (Config, error) {
 		RateLimitPerMinute:   rateLimitPerMinute,
 		DailyRequestLimit:    dailyRequestLimit,
 		UpstreamTimeout:      upstreamTimeout,
+		AgentDBPath:          stringFromEnv("AGENT_DB_PATH", defaultAgentDBPath),
 	}
 
 	if cfg.DeepSeekAPIKey == "" {

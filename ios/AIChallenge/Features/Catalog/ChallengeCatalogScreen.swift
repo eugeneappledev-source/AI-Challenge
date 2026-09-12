@@ -7,6 +7,7 @@ struct ChallengeCatalogScreen: View {
     let dayFourViewModel: TemperatureComparisonViewModel
     let dayFiveViewModel: ModelComparisonViewModel
     let daySixViewModel: AIAgentViewModel
+    let daySevenViewModel: AgentMemoryViewModel
 
     private let challenges = ChallengeCatalogItem.all
 
@@ -49,6 +50,8 @@ struct ChallengeCatalogScreen: View {
                     ModelComparisonScreen(viewModel: dayFiveViewModel)
                 case .daySix:
                     AIAgentScreen(viewModel: daySixViewModel)
+                case .daySeven:
+                    AgentMemoryScreen(viewModel: daySevenViewModel)
                 }
             }
         }
@@ -85,7 +88,7 @@ struct ChallengeCatalogScreen: View {
                     .trim(from: 0, to: 1)
                     .stroke(Color.aiForest, style: StrokeStyle(lineWidth: 7, lineCap: .round))
                     .rotationEffect(.degrees(-90))
-                Text("6/9")
+                Text("7/9")
                     .font(.caption.weight(.bold))
             }
             .frame(width: 54, height: 54)
@@ -225,6 +228,7 @@ private enum ChallengeRoute: Hashable {
     case dayFour
     case dayFive
     case daySix
+    case daySeven
 }
 
 private struct ChallengeCatalogItem: Identifiable {
@@ -292,6 +296,15 @@ private struct ChallengeCatalogItem: Identifiable {
             tint: .aiCoral,
             status: .completed,
             route: .daySix
+        ),
+        ChallengeCatalogItem(
+            number: "07",
+            title: "Сохранение контекста",
+            subtitle: "История в SQLite переживает перезапуск приложения и агента.",
+            systemImage: "memorychip.fill",
+            tint: .aiPurple,
+            status: .completed,
+            route: .daySeven
         ),
     ]
 }

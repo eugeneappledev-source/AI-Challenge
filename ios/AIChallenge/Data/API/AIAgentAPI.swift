@@ -20,13 +20,46 @@ struct AIAgentAPI: Sendable {
     }
 
     func send(message: String) async throws -> AIAgentExchange {
+        try await send(message: message, conversationID: nil)
+    }
+
+    func send(message: String, conversationID: String) async throws -> AIAgentExchange {
+        try await send(message: message, conversationID: Optional(conversationID))
+    }
+
+    func history(conversationID: String) async throws -> AIAgentConversation {
+        var components = URLComponents(url: baseURL.appending(path: "v1/agent/history"), resolvingAgainstBaseURL: false)
+        components?.queryItems = [URLQueryItem(name: "conversationId", value: conversationID)]
+        guard let url = components?.url else { throw NetworkError.invalidResponse }
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 30
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        authorize(&request)
+        return try await perform(request, as: AIAgentConversation.self)
+    }
+
+    func clearHistory(conversationID: String) async throws {
+        var components = URLComponents(url: baseURL.appending(path: "v1/agent/history"), resolvingAgainstBaseURL: false)
+        components?.queryItems = [URLQueryItem(name: "conversationId", value: conversationID)]
+        guard let url = components?.url else { throw NetworkError.invalidResponse }
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+        request.timeoutInterval = 30
+        authorize(&request)
+        let (_, response) = try await httpClient.data(for: request)
+        guard response.statusCode == 204 else {
+            throw NetworkError.httpStatus(code: response.statusCode, message: "Не удалось очистить историю.")
+        }
+    }
+
+    private func send(message: String, conversationID: String?) async throws -> AIAgentExchange {
         var request = URLRequest(url: baseURL.appending(path: "v1/agent/message"))
         request.httpMethod = "POST"
         request.timeoutInterval = 135
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         authorize(&request)
-        request.httpBody = try JSONEncoder().encode(AIAgentMessageRequestDTO(message: message))
+        request.httpBody = try JSONEncoder().encode(AIAgentMessageRequestDTO(message: message, conversationId: conversationID))
         return try await perform(request, as: AIAgentExchange.self)
     }
 

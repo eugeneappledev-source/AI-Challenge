@@ -102,6 +102,18 @@ func (s agentServiceStub) Respond(_ context.Context, input string) (domain.Agent
 	return exchange, s.err
 }
 
+func (s agentServiceStub) RespondInConversation(_ context.Context, conversationID, input string) (domain.AgentExchange, error) {
+	exchange, err := s.Respond(context.Background(), input)
+	exchange.ConversationID = conversationID
+	return exchange, err
+}
+
+func (s agentServiceStub) History(_ context.Context, conversationID string) (domain.AgentConversation, error) {
+	return domain.AgentConversation{ID: conversationID, AgentID: s.profile.ID, Messages: []domain.AgentMessage{}}, s.err
+}
+
+func (s agentServiceStub) ClearHistory(_ context.Context, _ string) error { return s.err }
+
 func (s *modelBenchmarkServiceRecorder) Run(_ context.Context, prompt string, tier domain.ModelTier) (domain.ModelBenchmarkAttempt, error) {
 	s.prompt = prompt
 	s.tier = tier

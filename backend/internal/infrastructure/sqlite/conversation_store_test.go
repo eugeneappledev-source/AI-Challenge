@@ -1,0 +1,51 @@
+package sqlite
+
+import (
+	"context"
+	"path/filepath"
+	"testing"
+	"time"
+
+	"github.com/eugeneappledev-source/AI-Challenge/backend/internal/domain"
+)
+
+func TestConversationSurvivesStoreReopen(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "agent.db")
+	store, err := Open(path)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	now := time.Date(2026, 9, 8, 12, 0, 0, 0, time.UTC)
+	usage := domain.Usage{PromptTokens: 10, CompletionTokens: 4, TotalTokens: 14}
+	err = store.Append(context.Background(), "c1", "mentor",
+		domain.AgentMessage{ID: "u1", Role: "user", Content: "Меня зовут Женя", CreatedAt: now},
+		domain.AgentMessage{ID: "a1", Role: "assistant", Content: "Запомнил", CreatedAt: now.Add(time.Nanosecond), Usage: &usage},
+	)
+	if err != nil {
+		t.Fatalf("append: %v", err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatalf("close: %v", err)
+	}
+
+	reopened, err := Open(path)
+	if err != nil {
+		t.Fatalf("reopen: %v", err)
+	}
+	defer reopened.Close()
+	conversation, err := reopened.Load(context.Background(), "c1", "mentor")
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if len(conversation.Messages) != 2 || conversation.Messages[0].Content != "Меня зовут Женя" || conversation.Messages[1].Usage.TotalTokens != 14 {
+		t.Fatalf("unexpected restored conversation: %+v", conversation)
+	}
+
+	if err := reopened.Clear(context.Background(), "c1", "mentor"); err != nil {
+		t.Fatalf("clear: %v", err)
+	}
+	conversation, err = reopened.Load(context.Background(), "c1", "mentor")
+	if err != nil || len(conversation.Messages) != 0 {
+		t.Fatalf("expected empty conversation, got %+v, %v", conversation, err)
+	}
+}

@@ -26,10 +26,19 @@ struct AIAgentMessage: Codable, Equatable, Identifiable, Sendable {
 
 struct AIAgentExchange: Codable, Equatable, Sendable {
     let agent: AIAgentProfile
+    let conversationId: String? = nil
+    let historyCount: Int? = nil
     let userMessage: AIAgentMessage
     let reply: AIAgentMessage
     let model: String
     let finishReason: String
     let usage: ModelUsage
     let trace: [String]
+}
+
+struct AIAgentConversation: Codable, Equatable, Sendable {
+    let id: String
+    let agentId: String
+    let messages: [AIAgentMessage]
+    let updatedAt: Date?
 }

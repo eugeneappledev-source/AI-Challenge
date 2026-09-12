@@ -14,6 +14,27 @@ type agentModelRecorder struct {
 	reply   domain.ModelResponse
 }
 
+type conversationStoreStub struct {
+	conversation domain.AgentConversation
+	appended     []domain.AgentMessage
+}
+
+func (s *conversationStoreStub) Load(_ context.Context, conversationID, agentID string) (domain.AgentConversation, error) {
+	result := s.conversation
+	result.ID, result.AgentID = conversationID, agentID
+	return result, nil
+}
+
+func (s *conversationStoreStub) Append(_ context.Context, _, _ string, messages ...domain.AgentMessage) error {
+	s.appended = append(s.appended, messages...)
+	return nil
+}
+
+func (s *conversationStoreStub) Clear(_ context.Context, _, _ string) error {
+	s.conversation.Messages = nil
+	return nil
+}
+
 func (r *agentModelRecorder) Generate(_ context.Context, request domain.ModelRequest) (domain.ModelResponse, error) {
 	r.request = request
 	return r.reply, nil
@@ -66,5 +87,29 @@ func TestAgentValidatesInputBeforeCallingModel(t *testing.T) {
 	}
 	if client.request.UserPrompt != "" {
 		t.Fatal("model must not be called for invalid input")
+	}
+}
+
+func TestAgentRestoresHistoryBeforeCallingModelAndPersistsExchange(t *testing.T) {
+	client := &agentModelRecorder{reply: domain.ModelResponse{Content: "Тебя зовут Женя", Model: "deepseek-flash"}}
+	store := &conversationStoreStub{conversation: domain.AgentConversation{Messages: []domain.AgentMessage{
+		{ID: "u0", Role: "user", Content: "Меня зовут Женя"},
+		{ID: "a0", Role: "assistant", Content: "Запомнил"},
+	}}}
+	agent := NewAgent(domain.AgentProfile{ID: "mentor", Instructions: "Помни контекст", Model: "deepseek-flash"}, client, 4000).WithMemory(store)
+
+	exchange, err := agent.RespondInConversation(context.Background(), "conversation-1", "Как меня зовут?")
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(client.request.Messages) != 4 || client.request.Messages[1].Content != "Меня зовут Женя" || client.request.Messages[3].Content != "Как меня зовут?" {
+		t.Fatalf("expected system + restored history + new input, got %+v", client.request.Messages)
+	}
+	if len(store.appended) != 2 || store.appended[0].Role != "user" || store.appended[1].Role != "assistant" {
+		t.Fatalf("expected atomic exchange persistence, got %+v", store.appended)
+	}
+	if exchange.ConversationID != "conversation-1" || exchange.HistoryCount != 4 {
+		t.Fatalf("unexpected conversation metadata: %+v", exchange)
 	}
 }

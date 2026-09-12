@@ -21,11 +21,20 @@ type AgentMessage struct {
 }
 
 type AgentExchange struct {
-	Agent        AgentProfile `json:"agent"`
-	UserMessage  AgentMessage `json:"userMessage"`
-	Reply        AgentMessage `json:"reply"`
-	Model        string       `json:"model"`
-	FinishReason string       `json:"finishReason"`
-	Usage        Usage        `json:"usage"`
-	Trace        []string     `json:"trace"`
+	Agent          AgentProfile `json:"agent"`
+	ConversationID string       `json:"conversationId,omitempty"`
+	HistoryCount   int          `json:"historyCount,omitempty"`
+	UserMessage    AgentMessage `json:"userMessage"`
+	Reply          AgentMessage `json:"reply"`
+	Model          string       `json:"model"`
+	FinishReason   string       `json:"finishReason"`
+	Usage          Usage        `json:"usage"`
+	Trace          []string     `json:"trace"`
+}
+
+type AgentConversation struct {
+	ID        string         `json:"id"`
+	AgentID   string         `json:"agentId"`
+	Messages  []AgentMessage `json:"messages"`
+	UpdatedAt *time.Time     `json:"updatedAt,omitempty"`
 }
