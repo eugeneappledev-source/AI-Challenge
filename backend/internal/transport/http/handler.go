@@ -43,6 +43,9 @@ type AgentService interface {
 	History(ctx context.Context, conversationID string) (domain.AgentConversation, error)
 	ClearHistory(ctx context.Context, conversationID string) error
 	TokenMetrics(ctx context.Context, conversationID string) (domain.AgentTokenMetrics, error)
+	RespondWithCompression(ctx context.Context, conversationID, input string) (domain.AgentExchange, error)
+	ContextState(ctx context.Context, conversationID string) (domain.ContextState, error)
+	CompareContexts(ctx context.Context, conversationID, question string) (domain.ContextComparison, error)
 }
 
 type Handler struct {
@@ -102,6 +105,8 @@ func (h *Handler) Routes() http.Handler {
 		mux.Handle("GET /v1/agent/history", h.requireAccessToken(http.HandlerFunc(h.agentHistory)))
 		mux.Handle("DELETE /v1/agent/history", h.requireAccessToken(http.HandlerFunc(h.clearAgentHistory)))
 		mux.Handle("GET /v1/agent/tokens", h.requireAccessToken(http.HandlerFunc(h.agentTokens)))
+		mux.Handle("GET /v1/agent/context", h.requireAccessToken(http.HandlerFunc(h.agentContext)))
+		mux.Handle("POST /v1/agent/context/compare", h.requireAccessToken(h.limitRequests(http.HandlerFunc(h.compareAgentContext))))
 	}
 	return h.logging(h.recoverPanic(mux))
 }
@@ -113,6 +118,7 @@ func (h *Handler) agentProfile(response http.ResponseWriter, _ *http.Request) {
 type agentMessageRequest struct {
 	Message        string `json:"message"`
 	ConversationID string `json:"conversationId,omitempty"`
+	Compression    bool   `json:"compression,omitempty"`
 }
 
 func (h *Handler) agentMessage(response http.ResponseWriter, request *http.Request) {
@@ -125,6 +131,8 @@ func (h *Handler) agentMessage(response http.ResponseWriter, request *http.Reque
 	var err error
 	if strings.TrimSpace(payload.ConversationID) == "" {
 		exchange, err = h.agentService.Respond(request.Context(), payload.Message)
+	} else if payload.Compression {
+		exchange, err = h.agentService.RespondWithCompression(request.Context(), payload.ConversationID, payload.Message)
 	} else {
 		exchange, err = h.agentService.RespondInConversation(request.Context(), payload.ConversationID, payload.Message)
 	}
@@ -167,6 +175,38 @@ func (h *Handler) agentTokens(response http.ResponseWriter, request *http.Reques
 		return
 	}
 	writeJSON(response, http.StatusOK, metrics)
+}
+
+func (h *Handler) agentContext(response http.ResponseWriter, request *http.Request) {
+	state, err := h.agentService.ContextState(request.Context(), request.URL.Query().Get("conversationId"))
+	if err != nil {
+		h.writeAgentMemoryError(response, err)
+		return
+	}
+	writeJSON(response, http.StatusOK, state)
+}
+
+type compareAgentContextRequest struct {
+	ConversationID string `json:"conversationId"`
+	Question       string `json:"question"`
+}
+
+func (h *Handler) compareAgentContext(response http.ResponseWriter, request *http.Request) {
+	var payload compareAgentContextRequest
+	if err := decodeRequestJSON(response, request, &payload); err != nil {
+		writeAPIError(response, http.StatusBadRequest, "invalid_request", "Request body must contain a conversation ID and question.")
+		return
+	}
+	comparison, err := h.agentService.CompareContexts(request.Context(), payload.ConversationID, payload.Question)
+	if err != nil {
+		if errors.Is(err, application.ErrEmptyAgentMessage) {
+			writeAPIError(response, http.StatusBadRequest, "empty_message", "Question is required.")
+			return
+		}
+		h.writeAgentMemoryError(response, err)
+		return
+	}
+	writeJSON(response, http.StatusOK, comparison)
 }
 
 func (h *Handler) writeAgentMemoryError(response http.ResponseWriter, err error) {

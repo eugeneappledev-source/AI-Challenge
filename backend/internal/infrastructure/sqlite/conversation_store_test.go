@@ -49,3 +49,25 @@ func TestConversationSurvivesStoreReopen(t *testing.T) {
 		t.Fatalf("expected empty conversation, got %+v, %v", conversation, err)
 	}
 }
+
+func TestSummaryIsStoredSeparatelyAndUpdated(t *testing.T) {
+	store, err := Open(filepath.Join(t.TempDir(), "agent.db"))
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	defer store.Close()
+	summary := domain.ConversationSummary{
+		ConversationID: "c1", AgentID: "mentor", Content: "Пользователь любит Swift",
+		CoveredMessages: 10, UpdatedAt: time.Now().UTC(),
+	}
+	if err := store.SaveSummary(context.Background(), summary); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	loaded, err := store.LoadSummary(context.Background(), "c1", "mentor")
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if loaded.Content != summary.Content || loaded.CoveredMessages != 10 {
+		t.Fatalf("unexpected summary: %+v", loaded)
+	}
+}

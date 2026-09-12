@@ -9,6 +9,7 @@ struct ChallengeCatalogScreen: View {
     let daySixViewModel: AIAgentViewModel
     let daySevenViewModel: AgentMemoryViewModel
     let dayEightViewModel: TokenLabViewModel
+    let dayNineViewModel: ContextCompressionViewModel
 
     private let challenges = ChallengeCatalogItem.all
 
@@ -55,6 +56,8 @@ struct ChallengeCatalogScreen: View {
                     AgentMemoryScreen(viewModel: daySevenViewModel)
                 case .dayEight:
                     TokenLabScreen(viewModel: dayEightViewModel)
+                case .dayNine:
+                    ContextCompressionScreen(viewModel: dayNineViewModel)
                 }
             }
         }
@@ -91,7 +94,7 @@ struct ChallengeCatalogScreen: View {
                     .trim(from: 0, to: 1)
                     .stroke(Color.aiForest, style: StrokeStyle(lineWidth: 7, lineCap: .round))
                     .rotationEffect(.degrees(-90))
-                Text("8/9")
+                Text("9/9")
                     .font(.caption.weight(.bold))
             }
             .frame(width: 54, height: 54)
@@ -233,6 +236,7 @@ private enum ChallengeRoute: Hashable {
     case daySix
     case daySeven
     case dayEight
+    case dayNine
 }
 
 private struct ChallengeCatalogItem: Identifiable {
@@ -318,6 +322,15 @@ private struct ChallengeCatalogItem: Identifiable {
             tint: .aiBlue,
             status: .completed,
             route: .dayEight
+        ),
+        ChallengeCatalogItem(
+            number: "09",
+            title: "Сжатие истории",
+            subtitle: "Summary + последние сообщения против полного контекста.",
+            systemImage: "archivebox.fill",
+            tint: .aiForest,
+            status: .completed,
+            route: .dayNine
         ),
     ]
 }

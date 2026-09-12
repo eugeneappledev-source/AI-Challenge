@@ -1,9 +1,16 @@
 struct AIAgentMessageRequestDTO: Encodable {
     let message: String
     let conversationId: String?
+    let compression: Bool
 
-    init(message: String, conversationId: String? = nil) {
+    init(message: String, conversationId: String? = nil, compression: Bool = false) {
         self.message = message
         self.conversationId = conversationId
+        self.compression = compression
     }
+}
+
+struct ContextComparisonRequestDTO: Encodable {
+    let conversationId: String
+    let question: String
 }

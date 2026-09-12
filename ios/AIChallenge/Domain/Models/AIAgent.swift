@@ -68,3 +68,38 @@ struct TokenScenario: Codable, Equatable, Identifiable, Sendable {
     let accepted: Bool
     let outcome: String
 }
+
+struct ContextState: Codable, Equatable, Sendable {
+    let conversationId: String
+    let summary: String
+    let summaryCoveredMessages: Int
+    let recentMessages: Int
+    let fullHistoryMessages: Int
+    let fullEstimatedTokens: Int
+    let compressedEstimatedTokens: Int
+    let estimatedSavedTokens: Int
+    let compressionActive: Bool
+}
+
+struct ContextAnswer: Codable, Equatable, Sendable {
+    let mode: String
+    let answer: String
+    let usage: ModelUsage
+}
+
+struct ContextReview: Codable, Equatable, Sendable {
+    let qualityPreserved: Bool
+    let verdict: String
+    let differences: [String]
+    let recommendation: String
+}
+
+struct ContextComparison: Codable, Equatable, Sendable {
+    let question: String
+    let summary: String
+    let full: ContextAnswer
+    let compressed: ContextAnswer
+    let promptTokensSaved: Int
+    let savingsPercent: Double
+    let review: ContextReview
+}

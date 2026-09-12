@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -14,9 +15,33 @@ type agentModelRecorder struct {
 	reply   domain.ModelResponse
 }
 
+type agentModelSequence struct {
+	requests []domain.ModelRequest
+	replies  []domain.ModelResponse
+}
+
+func (s *agentModelSequence) Generate(_ context.Context, request domain.ModelRequest) (domain.ModelResponse, error) {
+	s.requests = append(s.requests, request)
+	reply := s.replies[0]
+	s.replies = s.replies[1:]
+	return reply, nil
+}
+
 type conversationStoreStub struct {
 	conversation domain.AgentConversation
 	appended     []domain.AgentMessage
+	summary      domain.ConversationSummary
+}
+
+func (s *conversationStoreStub) LoadSummary(_ context.Context, conversationID, agentID string) (domain.ConversationSummary, error) {
+	result := s.summary
+	result.ConversationID, result.AgentID = conversationID, agentID
+	return result, nil
+}
+
+func (s *conversationStoreStub) SaveSummary(_ context.Context, summary domain.ConversationSummary) error {
+	s.summary = summary
+	return nil
 }
 
 func (s *conversationStoreStub) Load(_ context.Context, conversationID, agentID string) (domain.AgentConversation, error) {
@@ -137,5 +162,69 @@ func TestAgentTokenMetricsSeparateEstimatesFromProviderUsage(t *testing.T) {
 	}
 	if metrics.EstimatedCostUSD <= 0 || len(metrics.Scenarios) != 3 || metrics.Scenarios[2].Accepted {
 		t.Fatalf("expected cost and blocked overflow scenario, got %+v", metrics)
+	}
+}
+
+func TestCompressedAgentSummarizesOldBatchAndKeepsRecentMessages(t *testing.T) {
+	history := make([]domain.AgentMessage, 16)
+	for index := range history {
+		role := "user"
+		if index%2 == 1 {
+			role = "assistant"
+		}
+		history[index] = domain.AgentMessage{ID: newID(role, time.Unix(int64(index), 0)), Role: role, Content: role + " message"}
+	}
+	store := &conversationStoreStub{conversation: domain.AgentConversation{Messages: history}}
+	client := &agentModelSequence{replies: []domain.ModelResponse{
+		{Content: "Пользователь изучает AI-агентов."},
+		{Content: "Продолжаем с учётом сводки.", Usage: domain.Usage{PromptTokens: 80, CompletionTokens: 10, TotalTokens: 90}},
+	}}
+	agent := NewAgent(domain.AgentProfile{ID: "mentor", Model: "deepseek-flash", Instructions: "Помогай"}, client, 4000).WithMemory(store)
+
+	exchange, err := agent.RespondWithCompression(context.Background(), "c1", "Что дальше?")
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if store.summary.CoveredMessages != 10 || store.summary.Content == "" {
+		t.Fatalf("expected first 10 messages to be summarized, got %+v", store.summary)
+	}
+	if len(client.requests) != 2 || len(client.requests[1].Messages) != 9 {
+		t.Fatalf("expected system + summary + 6 recent + question, got %+v", client.requests)
+	}
+	if client.requests[1].Messages[1].Role != "system" || !strings.Contains(client.requests[1].Messages[1].Content, "Сводка") {
+		t.Fatalf("summary must be a separate context message: %+v", client.requests[1].Messages)
+	}
+	if exchange.HistoryCount != 18 {
+		t.Fatalf("full archive count must remain visible, got %d", exchange.HistoryCount)
+	}
+}
+
+func TestContextComparisonUsesSameQuestionAndIndependentReviewer(t *testing.T) {
+	history := make([]domain.AgentMessage, 16)
+	for index := range history {
+		history[index] = domain.AgentMessage{Role: "user", Content: "fact"}
+	}
+	store := &conversationStoreStub{
+		conversation: domain.AgentConversation{Messages: history},
+		summary:      domain.ConversationSummary{Content: "Краткие факты", CoveredMessages: 10},
+	}
+	client := &agentModelSequence{replies: []domain.ModelResponse{
+		{Content: "Полный ответ", Usage: domain.Usage{PromptTokens: 200, CompletionTokens: 20, TotalTokens: 220}},
+		{Content: "Сжатый ответ", Usage: domain.Usage{PromptTokens: 100, CompletionTokens: 20, TotalTokens: 120}},
+		{Content: `{"qualityPreserved":true,"verdict":"Смысл сохранён","differences":[],"recommendation":"Использовать сжатие"}`},
+	}}
+	agent := NewAgent(domain.AgentProfile{ID: "mentor", Model: "deepseek-flash", Instructions: "Помогай"}, client, 4000).WithMemory(store)
+
+	comparison, err := agent.CompareContexts(context.Background(), "c1", "Что мы решили?")
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(client.requests) != 3 || client.requests[0].Messages[len(client.requests[0].Messages)-1].Content != "Что мы решили?" || client.requests[1].Messages[len(client.requests[1].Messages)-1].Content != "Что мы решили?" {
+		t.Fatalf("both modes must receive the same question: %+v", client.requests)
+	}
+	if comparison.PromptTokensSaved != 100 || comparison.SavingsPercent != 50 || !comparison.Review.QualityPreserved {
+		t.Fatalf("unexpected comparison: %+v", comparison)
 	}
 }

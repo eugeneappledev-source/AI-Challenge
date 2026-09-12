@@ -24,7 +24,11 @@ struct AIAgentAPI: Sendable {
     }
 
     func send(message: String, conversationID: String) async throws -> AIAgentExchange {
-        try await send(message: message, conversationID: Optional(conversationID))
+        try await send(message: message, conversationID: Optional(conversationID), compression: false)
+    }
+
+    func sendCompressed(message: String, conversationID: String) async throws -> AIAgentExchange {
+        try await send(message: message, conversationID: Optional(conversationID), compression: true)
     }
 
     func history(conversationID: String) async throws -> AIAgentConversation {
@@ -63,14 +67,36 @@ struct AIAgentAPI: Sendable {
         return try await perform(request, as: AgentTokenMetrics.self)
     }
 
-    private func send(message: String, conversationID: String?) async throws -> AIAgentExchange {
+    func contextState(conversationID: String) async throws -> ContextState {
+        var components = URLComponents(url: baseURL.appending(path: "v1/agent/context"), resolvingAgainstBaseURL: false)
+        components?.queryItems = [URLQueryItem(name: "conversationId", value: conversationID)]
+        guard let url = components?.url else { throw NetworkError.invalidResponse }
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 90
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        authorize(&request)
+        return try await perform(request, as: ContextState.self)
+    }
+
+    func compareContexts(conversationID: String, question: String) async throws -> ContextComparison {
+        var request = URLRequest(url: baseURL.appending(path: "v1/agent/context/compare"))
+        request.httpMethod = "POST"
+        request.timeoutInterval = 180
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        authorize(&request)
+        request.httpBody = try JSONEncoder().encode(ContextComparisonRequestDTO(conversationId: conversationID, question: question))
+        return try await perform(request, as: ContextComparison.self)
+    }
+
+    private func send(message: String, conversationID: String?, compression: Bool = false) async throws -> AIAgentExchange {
         var request = URLRequest(url: baseURL.appending(path: "v1/agent/message"))
         request.httpMethod = "POST"
         request.timeoutInterval = 135
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         authorize(&request)
-        request.httpBody = try JSONEncoder().encode(AIAgentMessageRequestDTO(message: message, conversationId: conversationID))
+        request.httpBody = try JSONEncoder().encode(AIAgentMessageRequestDTO(message: message, conversationId: conversationID, compression: compression))
         return try await perform(request, as: AIAgentExchange.self)
     }
 

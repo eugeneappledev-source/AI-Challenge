@@ -95,6 +95,19 @@ enum AppContainer {
         )
     }
 
+    static func makeContextCompressionViewModel() -> ContextCompressionViewModel {
+        let configuration = AppConfiguration.live()
+        let api = AIAgentAPI(
+            baseURL: configuration.baseURL,
+            accessToken: configuration.accessToken,
+            httpClient: URLSessionHTTPClient(session: .shared)
+        )
+        return ContextCompressionViewModel(
+            useCase: ManageCompressedContextUseCase(repository: DefaultAIAgentRepository(api: api)),
+            conversationID: stableConversationID(for: "day09")
+        )
+    }
+
     private static func stableConversationID(for day: String) -> String {
         let key = "\(day).conversationID"
         if let saved = UserDefaults.standard.string(forKey: key) { return saved }

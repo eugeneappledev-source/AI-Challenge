@@ -118,6 +118,18 @@ func (s agentServiceStub) TokenMetrics(_ context.Context, conversationID string)
 	return domain.AgentTokenMetrics{ConversationID: conversationID, Model: s.profile.Model}, s.err
 }
 
+func (s agentServiceStub) RespondWithCompression(_ context.Context, conversationID, input string) (domain.AgentExchange, error) {
+	return s.RespondInConversation(context.Background(), conversationID, input)
+}
+
+func (s agentServiceStub) ContextState(_ context.Context, conversationID string) (domain.ContextState, error) {
+	return domain.ContextState{ConversationID: conversationID}, s.err
+}
+
+func (s agentServiceStub) CompareContexts(_ context.Context, _, question string) (domain.ContextComparison, error) {
+	return domain.ContextComparison{Question: question}, s.err
+}
+
 func (s *modelBenchmarkServiceRecorder) Run(_ context.Context, prompt string, tier domain.ModelTier) (domain.ModelBenchmarkAttempt, error) {
 	s.prompt = prompt
 	s.tier = tier

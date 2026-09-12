@@ -64,3 +64,46 @@ type TokenScenario struct {
 	Accepted        bool   `json:"accepted"`
 	Outcome         string `json:"outcome"`
 }
+
+type ConversationSummary struct {
+	ConversationID  string    `json:"conversationId"`
+	AgentID         string    `json:"agentId"`
+	Content         string    `json:"content"`
+	CoveredMessages int       `json:"coveredMessages"`
+	UpdatedAt       time.Time `json:"updatedAt"`
+}
+
+type ContextState struct {
+	ConversationID            string `json:"conversationId"`
+	Summary                   string `json:"summary"`
+	SummaryCoveredMessages    int    `json:"summaryCoveredMessages"`
+	RecentMessages            int    `json:"recentMessages"`
+	FullHistoryMessages       int    `json:"fullHistoryMessages"`
+	FullEstimatedTokens       int    `json:"fullEstimatedTokens"`
+	CompressedEstimatedTokens int    `json:"compressedEstimatedTokens"`
+	EstimatedSavedTokens      int    `json:"estimatedSavedTokens"`
+	CompressionActive         bool   `json:"compressionActive"`
+}
+
+type ContextAnswer struct {
+	Mode   string `json:"mode"`
+	Answer string `json:"answer"`
+	Usage  Usage  `json:"usage"`
+}
+
+type ContextReview struct {
+	QualityPreserved bool     `json:"qualityPreserved"`
+	Verdict          string   `json:"verdict"`
+	Differences      []string `json:"differences"`
+	Recommendation   string   `json:"recommendation"`
+}
+
+type ContextComparison struct {
+	Question          string        `json:"question"`
+	Summary           string        `json:"summary"`
+	Full              ContextAnswer `json:"full"`
+	Compressed        ContextAnswer `json:"compressed"`
+	PromptTokensSaved int           `json:"promptTokensSaved"`
+	SavingsPercent    float64       `json:"savingsPercent"`
+	Review            ContextReview `json:"review"`
+}
