@@ -12,16 +12,20 @@ struct ContextStrategiesUseCaseTests {
             message: "Новая идея",
             sessionID: "session-10",
             strategy: .branching,
-            branchID: "growth"
+            branchID: "growth",
+            windowSize: 10
         )
-        _ = try await useCase.compare(sessionID: "session-10")
+        _ = try await useCase.compare(sessionID: "session-10", windowSize: 10)
 
         let request = await repository.sendRequest
         let comparedSessionID = await repository.comparedSessionID
+        let comparedWindowSize = await repository.comparedWindowSize
         #expect(request?.message == "Новая идея")
         #expect(request?.strategy == .branching)
         #expect(request?.branchID == "growth")
+        #expect(request?.windowSize == 10)
         #expect(comparedSessionID == "session-10")
+        #expect(comparedWindowSize == 10)
     }
 }
 
@@ -30,17 +34,19 @@ private actor RecordingContextStrategyRepository: ContextStrategyRepository {
         let message: String
         let strategy: ContextStrategy
         let branchID: String?
+        let windowSize: Int
     }
 
     private(set) var sendRequest: SendRequest?
     private(set) var comparedSessionID: String?
+    private(set) var comparedWindowSize: Int?
 
-    func state(sessionID: String, strategy: ContextStrategy, branchID: String?) async throws -> ContextStrategyState {
-        makeState(sessionID: sessionID, strategy: strategy, branchID: branchID)
+    func state(sessionID: String, strategy: ContextStrategy, branchID: String?, windowSize: Int) async throws -> ContextStrategyState {
+        makeState(sessionID: sessionID, strategy: strategy, branchID: branchID, windowSize: windowSize)
     }
 
-    func send(message: String, sessionID: String, strategy: ContextStrategy, branchID: String?) async throws -> ContextStrategyExchange {
-        sendRequest = SendRequest(message: message, strategy: strategy, branchID: branchID)
+    func send(message: String, sessionID: String, strategy: ContextStrategy, branchID: String?, windowSize: Int) async throws -> ContextStrategyExchange {
+        sendRequest = SendRequest(message: message, strategy: strategy, branchID: branchID, windowSize: windowSize)
         let profile = AIAgentProfile(
             id: "mentor", name: "Compass", role: "mentor", instructions: "help",
             model: "test-model", temperature: 0.3, maxOutputTokens: 500
@@ -54,18 +60,19 @@ private actor RecordingContextStrategyRepository: ContextStrategyRepository {
         )
         return ContextStrategyExchange(
             strategy: strategy, branchId: branchID, exchange: exchange,
-            state: makeState(sessionID: sessionID, strategy: strategy, branchID: branchID)
+            state: makeState(sessionID: sessionID, strategy: strategy, branchID: branchID, windowSize: windowSize)
         )
     }
 
     func createBranches(sessionID: String) async throws -> ContextStrategyState {
-        makeState(sessionID: sessionID, strategy: .branching, branchID: "mvp")
+        makeState(sessionID: sessionID, strategy: .branching, branchID: "mvp", windowSize: 6)
     }
 
-    func compare(sessionID: String) async throws -> ContextStrategyComparison {
+    func compare(sessionID: String, windowSize: Int) async throws -> ContextStrategyComparison {
         comparedSessionID = sessionID
+        comparedWindowSize = windowSize
         return ContextStrategyComparison(
-            sessionId: sessionID, scenario: [], question: "question", results: [],
+            sessionId: sessionID, windowSize: windowSize, scenario: [], question: "question", results: [],
             review: ContextStrategyReview(
                 winner: .stickyFacts, verdict: "verdict", differences: [], scores: [], recommendations: [],
                 model: "test-model", usage: ModelUsage(promptTokens: 1, completionTokens: 1, totalTokens: 2)
@@ -75,10 +82,10 @@ private actor RecordingContextStrategyRepository: ContextStrategyRepository {
 
     func clear(sessionID: String) async throws {}
 
-    private func makeState(sessionID: String, strategy: ContextStrategy, branchID: String?) -> ContextStrategyState {
+    private func makeState(sessionID: String, strategy: ContextStrategy, branchID: String?, windowSize: Int) -> ContextStrategyState {
         ContextStrategyState(
             sessionId: sessionID, strategy: strategy, activeBranchId: branchID,
-            windowSize: 6, messages: [], facts: [], branches: [],
+            windowSize: windowSize, messages: [], facts: [], branches: [],
             lastUsage: ModelUsage(promptTokens: 0, completionTokens: 0, totalTokens: 0)
         )
     }

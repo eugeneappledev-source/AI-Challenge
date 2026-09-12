@@ -8,6 +8,7 @@ struct ContextStrategiesScreen: View {
             VStack(alignment: .leading, spacing: 18) {
                 header
                 strategyPicker
+                windowSizeControl
                 strategyOverview
                 if let state = viewModel.currentState { stateCard(state) }
                 composer
@@ -29,6 +30,9 @@ struct ContextStrategiesScreen: View {
         .onChange(of: viewModel.selectedStrategy) { _, strategy in
             if strategy == .branching, viewModel.activeBranchID.isEmpty { viewModel.activeBranchID = "main" }
             Task { await viewModel.loadSelected() }
+        }
+        .onChange(of: viewModel.selectedWindowSize) { _, _ in
+            Task { await viewModel.windowSizeDidChange() }
         }
         .alert("Context Strategies Lab", isPresented: Binding(
             get: { viewModel.errorMessage != nil },
@@ -53,6 +57,33 @@ struct ContextStrategiesScreen: View {
             ForEach(ContextStrategy.allCases) { strategy in Text(strategy.title).tag(strategy) }
         }
         .pickerStyle(.segmented)
+    }
+
+    private var windowSizeControl: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Label("Размер окна N", systemImage: "slider.horizontal.3")
+                    .font(.headline)
+                Spacer()
+                Text("N = \(viewModel.selectedWindowSize)")
+                    .font(.caption.bold().monospaced())
+                    .foregroundStyle(Color.aiCoral)
+            }
+            Picker("Размер окна", selection: $viewModel.selectedWindowSize) {
+                ForEach(viewModel.windowSizeOptions, id: \.self) { size in
+                    Text("\(size) msg").tag(size)
+                }
+            }
+            .pickerStyle(.segmented)
+            .disabled(viewModel.isLoading)
+
+            Text("N применяется к Sliding Window и Sticky Facts, а общий тест заново прогоняет обе стратегии с выбранным значением. Увеличение N не возвращает уже отброшенные сообщения — для чистого ручного опыта нажмите «Очистить».")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .lineSpacing(2)
+        }
+        .padding(15)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 19))
     }
 
     private var strategyOverview: some View {
@@ -103,7 +134,7 @@ struct ContextStrategiesScreen: View {
                 VStack(alignment: .leading, spacing: 7) {
                     Text(state.strategy == .branching ? "СООБЩЕНИЯ АКТИВНОЙ ВЕТКИ" : "СОХРАНЁННОЕ ОКНО")
                         .font(.system(size: 9, weight: .bold)).foregroundStyle(.secondary)
-                    ForEach(state.messages.suffix(6)) { message in
+                    ForEach(state.messages.suffix(state.strategy == .branching ? 6 : state.windowSize)) { message in
                         HStack(alignment: .top, spacing: 8) {
                             Circle().fill(message.role == .user ? Color.aiCoral : Color.aiForest).frame(width: 6, height: 6).padding(.top, 5)
                             Text(message.content).font(.caption).lineLimit(3)
@@ -164,7 +195,7 @@ struct ContextStrategiesScreen: View {
     private var comparisonLauncher: some View {
         VStack(alignment: .leading, spacing: 10) {
             Label("Одинаковый тест для всех", systemImage: "scale.3d").font(.headline)
-            Text("12 сообщений о ТЗ PulsePlan: ранние ограничения, свежие требования и две версии продукта. Результат оценивает отдельный LLM-рецензент.")
+            Text("12 сообщений о ТЗ PulsePlan при N = \(viewModel.selectedWindowSize): ранние ограничения, свежие требования и две версии продукта. Результат оценивает отдельный LLM-рецензент.")
                 .font(.caption).foregroundStyle(.secondary).lineSpacing(3)
             Button { Task { await viewModel.runComparison() } } label: {
                 Label("Прогнать сценарий и сравнить", systemImage: "play.fill").frame(maxWidth: .infinity)
@@ -176,7 +207,13 @@ struct ContextStrategiesScreen: View {
 
     private func comparisonSection(_ comparison: ContextStrategyComparison) -> some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Результаты").font(.title2.bold())
+            HStack {
+                Text("Результаты").font(.title2.bold())
+                Spacer()
+                Text("N = \(comparison.windowSize)")
+                    .font(.caption.bold().monospaced())
+                    .foregroundStyle(Color.aiCoral)
+            }
             ForEach(comparison.results) { result in resultCard(result) }
             reviewCard(comparison.review)
         }

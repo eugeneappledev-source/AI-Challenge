@@ -14,11 +14,16 @@ import (
 
 var (
 	ErrInvalidContextStrategy = errors.New("invalid context strategy")
+	ErrInvalidContextWindow   = errors.New("invalid context window size")
 	ErrBranchNotCreated       = errors.New("branch is not created")
 	ErrCheckpointRequired     = errors.New("checkpoint requires messages")
 )
 
-const strategyWindowMessages = 6
+const (
+	defaultStrategyWindowMessages = 6
+	minStrategyWindowMessages     = 2
+	maxStrategyWindowMessages     = 20
+)
 
 var strategyBranches = []struct {
 	id    string
@@ -29,8 +34,12 @@ var strategyBranches = []struct {
 	{id: "growth", title: "Growth"},
 }
 
-func (a *Agent) RespondWithStrategy(ctx context.Context, sessionID string, strategy domain.ContextStrategy, branchID, input string) (domain.ContextStrategyExchange, error) {
+func (a *Agent) RespondWithStrategy(ctx context.Context, sessionID string, strategy domain.ContextStrategy, branchID string, windowSize int, input string) (domain.ContextStrategyExchange, error) {
 	if err := a.validateStrategyRequest(sessionID, strategy); err != nil {
+		return domain.ContextStrategyExchange{}, err
+	}
+	windowSize, err := normalizeStrategyWindowSize(windowSize)
+	if err != nil {
 		return domain.ContextStrategyExchange{}, err
 	}
 	branchID = normalizeBranchID(strategy, branchID)
@@ -38,6 +47,12 @@ func (a *Agent) RespondWithStrategy(ctx context.Context, sessionID string, strat
 	conversation, err := a.store.Load(ctx, conversationID, a.profile.ID)
 	if err != nil {
 		return domain.ContextStrategyExchange{}, err
+	}
+	if strategy != domain.ContextStrategyBranching {
+		conversation, err = a.trimStrategyConversation(ctx, conversation, windowSize)
+		if err != nil {
+			return domain.ContextStrategyExchange{}, err
+		}
 	}
 	if strategy == domain.ContextStrategyBranching && branchID != "main" && len(conversation.Messages) == 0 {
 		return domain.ContextStrategyExchange{}, ErrBranchNotCreated
@@ -60,11 +75,11 @@ func (a *Agent) RespondWithStrategy(ctx context.Context, sessionID string, strat
 	}
 	operationUsage = addUsage(operationUsage, exchange.Usage)
 	if strategy != domain.ContextStrategyBranching {
-		if err := a.store.Trim(ctx, conversationID, a.profile.ID, strategyWindowMessages); err != nil {
+		if err := a.store.Trim(ctx, conversationID, a.profile.ID, windowSize); err != nil {
 			return domain.ContextStrategyExchange{}, err
 		}
 	}
-	state, err := a.StrategyState(ctx, sessionID, strategy, branchID)
+	state, err := a.StrategyState(ctx, sessionID, strategy, branchID, windowSize)
 	if err != nil {
 		return domain.ContextStrategyExchange{}, err
 	}
@@ -72,8 +87,12 @@ func (a *Agent) RespondWithStrategy(ctx context.Context, sessionID string, strat
 	return domain.ContextStrategyExchange{Strategy: strategy, BranchID: branchID, Exchange: exchange, State: state}, nil
 }
 
-func (a *Agent) StrategyState(ctx context.Context, sessionID string, strategy domain.ContextStrategy, branchID string) (domain.ContextStrategyState, error) {
+func (a *Agent) StrategyState(ctx context.Context, sessionID string, strategy domain.ContextStrategy, branchID string, windowSize int) (domain.ContextStrategyState, error) {
 	if err := a.validateStrategyRequest(sessionID, strategy); err != nil {
+		return domain.ContextStrategyState{}, err
+	}
+	windowSize, err := normalizeStrategyWindowSize(windowSize)
+	if err != nil {
 		return domain.ContextStrategyState{}, err
 	}
 	branchID = normalizeBranchID(strategy, branchID)
@@ -81,9 +100,15 @@ func (a *Agent) StrategyState(ctx context.Context, sessionID string, strategy do
 	if err != nil {
 		return domain.ContextStrategyState{}, err
 	}
+	if strategy != domain.ContextStrategyBranching {
+		conversation, err = a.trimStrategyConversation(ctx, conversation, windowSize)
+		if err != nil {
+			return domain.ContextStrategyState{}, err
+		}
+	}
 	state := domain.ContextStrategyState{
 		SessionID: sessionID, Strategy: strategy, ActiveBranchID: branchID,
-		WindowSize: strategyWindowMessages, Messages: conversation.Messages,
+		WindowSize: windowSize, Messages: conversation.Messages,
 		Facts: []domain.MemoryFact{}, Branches: []domain.StrategyBranch{},
 	}
 	if len(conversation.Messages) > 0 {
@@ -131,7 +156,7 @@ func (a *Agent) CreateStrategyBranches(ctx context.Context, sessionID string) (d
 			return domain.ContextStrategyState{}, err
 		}
 	}
-	return a.StrategyState(ctx, sessionID, domain.ContextStrategyBranching, "mvp")
+	return a.StrategyState(ctx, sessionID, domain.ContextStrategyBranching, "mvp", defaultStrategyWindowMessages)
 }
 
 func (a *Agent) ClearContextStrategies(ctx context.Context, sessionID string) error {
@@ -153,9 +178,13 @@ func (a *Agent) ClearContextStrategies(ctx context.Context, sessionID string) er
 	return a.store.ClearFacts(ctx, sessionID, a.profile.ID)
 }
 
-func (a *Agent) CompareContextStrategies(ctx context.Context, sessionID string) (domain.ContextStrategyComparison, error) {
+func (a *Agent) CompareContextStrategies(ctx context.Context, sessionID string, windowSize int) (domain.ContextStrategyComparison, error) {
 	if strings.TrimSpace(sessionID) == "" {
 		return domain.ContextStrategyComparison{}, ErrConversationIDRequired
+	}
+	windowSize, err := normalizeStrategyWindowSize(windowSize)
+	if err != nil {
+		return domain.ContextStrategyComparison{}, err
 	}
 	if err := a.ClearContextStrategies(ctx, sessionID); err != nil {
 		return domain.ContextStrategyComparison{}, err
@@ -180,7 +209,7 @@ func (a *Agent) CompareContextStrategies(ctx context.Context, sessionID string) 
 	usageByStrategy := map[domain.ContextStrategy]domain.Usage{}
 	for _, strategy := range []domain.ContextStrategy{domain.ContextStrategySlidingWindow, domain.ContextStrategyStickyFacts} {
 		for _, prompt := range append(append([]string{}, common...), mvp...) {
-			exchange, err := a.RespondWithStrategy(ctx, sessionID, strategy, "", prompt)
+			exchange, err := a.RespondWithStrategy(ctx, sessionID, strategy, "", windowSize, prompt)
 			if err != nil {
 				return domain.ContextStrategyComparison{}, err
 			}
@@ -188,7 +217,7 @@ func (a *Agent) CompareContextStrategies(ctx context.Context, sessionID string) 
 		}
 	}
 	for _, prompt := range common {
-		exchange, err := a.RespondWithStrategy(ctx, sessionID, domain.ContextStrategyBranching, "main", prompt)
+		exchange, err := a.RespondWithStrategy(ctx, sessionID, domain.ContextStrategyBranching, "main", windowSize, prompt)
 		if err != nil {
 			return domain.ContextStrategyComparison{}, err
 		}
@@ -202,7 +231,7 @@ func (a *Agent) CompareContextStrategies(ctx context.Context, sessionID string) 
 		prompts []string
 	}{{branch: "mvp", prompts: mvp}, {branch: "growth", prompts: growth}} {
 		for _, prompt := range item.prompts {
-			exchange, err := a.RespondWithStrategy(ctx, sessionID, domain.ContextStrategyBranching, item.branch, prompt)
+			exchange, err := a.RespondWithStrategy(ctx, sessionID, domain.ContextStrategyBranching, item.branch, windowSize, prompt)
 			if err != nil {
 				return domain.ContextStrategyComparison{}, err
 			}
@@ -230,7 +259,7 @@ func (a *Agent) CompareContextStrategies(ctx context.Context, sessionID string) 
 	if err != nil {
 		return domain.ContextStrategyComparison{}, err
 	}
-	return domain.ContextStrategyComparison{SessionID: sessionID, Scenario: scenario, Question: question, Results: results, Review: review}, nil
+	return domain.ContextStrategyComparison{SessionID: sessionID, WindowSize: windowSize, Scenario: scenario, Question: question, Results: results, Review: review}, nil
 }
 
 func (a *Agent) generateStrategyResult(ctx context.Context, sessionID string, strategy domain.ContextStrategy, question string) (domain.ContextStrategyResult, error) {
@@ -358,6 +387,27 @@ func (a *Agent) validateStrategyRequest(sessionID string, strategy domain.Contex
 		return errors.New("agent memory is not configured")
 	}
 	return nil
+}
+
+func normalizeStrategyWindowSize(windowSize int) (int, error) {
+	if windowSize == 0 {
+		return defaultStrategyWindowMessages, nil
+	}
+	if windowSize < minStrategyWindowMessages || windowSize > maxStrategyWindowMessages {
+		return 0, ErrInvalidContextWindow
+	}
+	return windowSize, nil
+}
+
+func (a *Agent) trimStrategyConversation(ctx context.Context, conversation domain.AgentConversation, windowSize int) (domain.AgentConversation, error) {
+	if len(conversation.Messages) <= windowSize {
+		return conversation, nil
+	}
+	if err := a.store.Trim(ctx, conversation.ID, a.profile.ID, windowSize); err != nil {
+		return domain.AgentConversation{}, err
+	}
+	conversation.Messages = append([]domain.AgentMessage(nil), conversation.Messages[len(conversation.Messages)-windowSize:]...)
+	return conversation, nil
 }
 
 func normalizeBranchID(strategy domain.ContextStrategy, branchID string) string {

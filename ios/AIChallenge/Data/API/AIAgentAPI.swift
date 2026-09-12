@@ -89,12 +89,13 @@ struct AIAgentAPI: Sendable {
         return try await perform(request, as: ContextComparison.self)
     }
 
-    func strategyState(sessionID: String, strategy: ContextStrategy, branchID: String?) async throws -> ContextStrategyState {
+    func strategyState(sessionID: String, strategy: ContextStrategy, branchID: String?, windowSize: Int) async throws -> ContextStrategyState {
         var components = URLComponents(url: baseURL.appending(path: "v1/agent/strategies/state"), resolvingAgainstBaseURL: false)
         components?.queryItems = [
             URLQueryItem(name: "sessionId", value: sessionID),
             URLQueryItem(name: "strategy", value: strategy.rawValue),
             URLQueryItem(name: "branchId", value: branchID),
+            URLQueryItem(name: "windowSize", value: String(windowSize)),
         ]
         guard let url = components?.url else { throw NetworkError.invalidResponse }
         var request = URLRequest(url: url)
@@ -104,14 +105,14 @@ struct AIAgentAPI: Sendable {
         return try await perform(request, as: ContextStrategyState.self)
     }
 
-    func sendStrategy(message: String, sessionID: String, strategy: ContextStrategy, branchID: String?) async throws -> ContextStrategyExchange {
+    func sendStrategy(message: String, sessionID: String, strategy: ContextStrategy, branchID: String?, windowSize: Int) async throws -> ContextStrategyExchange {
         var request = URLRequest(url: baseURL.appending(path: "v1/agent/strategies/message"))
         request.httpMethod = "POST"
         request.timeoutInterval = 150
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         authorize(&request)
-        request.httpBody = try JSONEncoder().encode(ContextStrategyMessageRequestDTO(sessionId: sessionID, strategy: strategy, branchId: branchID, message: message))
+        request.httpBody = try JSONEncoder().encode(ContextStrategyMessageRequestDTO(sessionId: sessionID, strategy: strategy, branchId: branchID, windowSize: windowSize, message: message))
         return try await perform(request, as: ContextStrategyExchange.self)
     }
 
@@ -126,14 +127,14 @@ struct AIAgentAPI: Sendable {
         return try await perform(request, as: ContextStrategyState.self)
     }
 
-    func compareContextStrategies(sessionID: String) async throws -> ContextStrategyComparison {
+    func compareContextStrategies(sessionID: String, windowSize: Int) async throws -> ContextStrategyComparison {
         var request = URLRequest(url: baseURL.appending(path: "v1/agent/strategies/compare"))
         request.httpMethod = "POST"
         request.timeoutInterval = 300
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         authorize(&request)
-        request.httpBody = try JSONEncoder().encode(ContextStrategySessionRequestDTO(sessionId: sessionID))
+        request.httpBody = try JSONEncoder().encode(ContextStrategySessionRequestDTO(sessionId: sessionID, windowSize: windowSize))
         return try await perform(request, as: ContextStrategyComparison.self)
     }
 

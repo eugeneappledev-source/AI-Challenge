@@ -24,7 +24,7 @@
 | 2 | [07](challenges/day-07/README.md) | Сохранение контекста | SQLite и восстановление истории | ✅ |
 | 2 | [08](challenges/day-08/README.md) | Работа с токенами | Метрики контекста, ответа и стоимости | ✅ |
 | 2 | [09](challenges/day-09/README.md) | Сжатие истории | Summary + последние N сообщений и A/B-рецензия | ✅ |
-| 2 | [10](challenges/day-10/README.md) | Стратегии контекста | Sliding Window, Sticky Facts и Branching | ✅ |
+| 2 | [10](challenges/day-10/README.md) | Стратегии контекста | Настраиваемый N, Sliding Window, Sticky Facts и Branching | ✅ |
 
 Подробная навигация по выполненным заданиям находится в [дневнике челленджа](challenges/README.md).
 

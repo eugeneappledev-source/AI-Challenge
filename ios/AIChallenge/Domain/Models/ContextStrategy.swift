@@ -104,6 +104,7 @@ struct ContextStrategyReview: Codable, Equatable, Sendable {
 
 struct ContextStrategyComparison: Codable, Equatable, Sendable {
     let sessionId: String
+    let windowSize: Int
     let scenario: [String]
     let question: String
     let results: [ContextStrategyResult]

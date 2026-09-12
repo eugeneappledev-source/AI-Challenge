@@ -4,7 +4,9 @@ import Observation
 @MainActor
 @Observable
 final class ContextStrategiesViewModel {
+    let windowSizeOptions = [4, 6, 10]
     var selectedStrategy: ContextStrategy = .slidingWindow
+    var selectedWindowSize = 6
     var activeBranchID = "main"
     var input = ""
     private(set) var states: [ContextStrategy: ContextStrategyState] = [:]
@@ -37,6 +39,11 @@ final class ContextStrategiesViewModel {
         await load(strategy: .branching, branchID: branchID)
     }
 
+    func windowSizeDidChange() async {
+        comparison = nil
+        await loadSelected()
+    }
+
     func send() async {
         let value = input.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !value.isEmpty, !isLoading else { return }
@@ -47,7 +54,13 @@ final class ContextStrategiesViewModel {
         defer { isLoading = false; progressText = "" }
         do {
             let branchID = selectedStrategy == .branching ? activeBranchID : nil
-            let result = try await useCase.send(message: value, sessionID: sessionID, strategy: selectedStrategy, branchID: branchID)
+            let result = try await useCase.send(
+                message: value,
+                sessionID: sessionID,
+                strategy: selectedStrategy,
+                branchID: branchID,
+                windowSize: selectedWindowSize
+            )
             states[selectedStrategy] = result.state
         } catch {
             input = value
@@ -70,16 +83,21 @@ final class ContextStrategiesViewModel {
     func runComparison() async {
         guard !isLoading else { return }
         isLoading = true
-        progressText = "Прогоняю 12 сообщений через три стратегии…"
+        progressText = "Прогоняю 12 сообщений при N = \(selectedWindowSize)…"
         errorMessage = nil
         comparison = nil
         defer { isLoading = false; progressText = "" }
         do {
-            comparison = try await useCase.compare(sessionID: sessionID)
-            states[.slidingWindow] = try await useCase.state(sessionID: sessionID, strategy: .slidingWindow)
-            states[.stickyFacts] = try await useCase.state(sessionID: sessionID, strategy: .stickyFacts)
+            comparison = try await useCase.compare(sessionID: sessionID, windowSize: selectedWindowSize)
+            states[.slidingWindow] = try await useCase.state(sessionID: sessionID, strategy: .slidingWindow, windowSize: selectedWindowSize)
+            states[.stickyFacts] = try await useCase.state(sessionID: sessionID, strategy: .stickyFacts, windowSize: selectedWindowSize)
             activeBranchID = "mvp"
-            states[.branching] = try await useCase.state(sessionID: sessionID, strategy: .branching, branchID: activeBranchID)
+            states[.branching] = try await useCase.state(
+                sessionID: sessionID,
+                strategy: .branching,
+                branchID: activeBranchID,
+                windowSize: selectedWindowSize
+            )
         } catch { show(error) }
     }
 
@@ -102,7 +120,14 @@ final class ContextStrategiesViewModel {
         isLoading = true
         errorMessage = nil
         defer { isLoading = false }
-        do { states[strategy] = try await useCase.state(sessionID: sessionID, strategy: strategy, branchID: branchID) }
+        do {
+            states[strategy] = try await useCase.state(
+                sessionID: sessionID,
+                strategy: strategy,
+                branchID: branchID,
+                windowSize: selectedWindowSize
+            )
+        }
         catch { show(error) }
     }
 

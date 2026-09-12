@@ -8,6 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -46,10 +47,10 @@ type AgentService interface {
 	RespondWithCompression(ctx context.Context, conversationID, input string) (domain.AgentExchange, error)
 	ContextState(ctx context.Context, conversationID string) (domain.ContextState, error)
 	CompareContexts(ctx context.Context, conversationID, question string) (domain.ContextComparison, error)
-	RespondWithStrategy(ctx context.Context, sessionID string, strategy domain.ContextStrategy, branchID, input string) (domain.ContextStrategyExchange, error)
-	StrategyState(ctx context.Context, sessionID string, strategy domain.ContextStrategy, branchID string) (domain.ContextStrategyState, error)
+	RespondWithStrategy(ctx context.Context, sessionID string, strategy domain.ContextStrategy, branchID string, windowSize int, input string) (domain.ContextStrategyExchange, error)
+	StrategyState(ctx context.Context, sessionID string, strategy domain.ContextStrategy, branchID string, windowSize int) (domain.ContextStrategyState, error)
 	CreateStrategyBranches(ctx context.Context, sessionID string) (domain.ContextStrategyState, error)
-	CompareContextStrategies(ctx context.Context, sessionID string) (domain.ContextStrategyComparison, error)
+	CompareContextStrategies(ctx context.Context, sessionID string, windowSize int) (domain.ContextStrategyComparison, error)
 	ClearContextStrategies(ctx context.Context, sessionID string) error
 }
 
@@ -220,10 +221,11 @@ func (h *Handler) compareAgentContext(response http.ResponseWriter, request *htt
 }
 
 type contextStrategyMessageRequest struct {
-	SessionID string                 `json:"sessionId"`
-	Strategy  domain.ContextStrategy `json:"strategy"`
-	BranchID  string                 `json:"branchId,omitempty"`
-	Message   string                 `json:"message"`
+	SessionID  string                 `json:"sessionId"`
+	Strategy   domain.ContextStrategy `json:"strategy"`
+	BranchID   string                 `json:"branchId,omitempty"`
+	WindowSize int                    `json:"windowSize,omitempty"`
+	Message    string                 `json:"message"`
 }
 
 func (h *Handler) strategyMessage(response http.ResponseWriter, request *http.Request) {
@@ -232,7 +234,7 @@ func (h *Handler) strategyMessage(response http.ResponseWriter, request *http.Re
 		writeAPIError(response, http.StatusBadRequest, "invalid_request", "Request must contain sessionId, strategy and message.")
 		return
 	}
-	exchange, err := h.agentService.RespondWithStrategy(request.Context(), payload.SessionID, payload.Strategy, payload.BranchID, payload.Message)
+	exchange, err := h.agentService.RespondWithStrategy(request.Context(), payload.SessionID, payload.Strategy, payload.BranchID, payload.WindowSize, payload.Message)
 	if err != nil {
 		h.writeContextStrategyError(response, err)
 		return
@@ -241,9 +243,14 @@ func (h *Handler) strategyMessage(response http.ResponseWriter, request *http.Re
 }
 
 func (h *Handler) strategyState(response http.ResponseWriter, request *http.Request) {
+	windowSize, err := parseStrategyWindowSize(request.URL.Query().Get("windowSize"))
+	if err != nil {
+		h.writeContextStrategyError(response, err)
+		return
+	}
 	state, err := h.agentService.StrategyState(
 		request.Context(), request.URL.Query().Get("sessionId"),
-		domain.ContextStrategy(request.URL.Query().Get("strategy")), request.URL.Query().Get("branchId"),
+		domain.ContextStrategy(request.URL.Query().Get("strategy")), request.URL.Query().Get("branchId"), windowSize,
 	)
 	if err != nil {
 		h.writeContextStrategyError(response, err)
@@ -253,7 +260,8 @@ func (h *Handler) strategyState(response http.ResponseWriter, request *http.Requ
 }
 
 type contextStrategySessionRequest struct {
-	SessionID string `json:"sessionId"`
+	SessionID  string `json:"sessionId"`
+	WindowSize int    `json:"windowSize,omitempty"`
 }
 
 func (h *Handler) createStrategyBranches(response http.ResponseWriter, request *http.Request) {
@@ -276,7 +284,7 @@ func (h *Handler) compareContextStrategies(response http.ResponseWriter, request
 		writeAPIError(response, http.StatusBadRequest, "invalid_request", "Request must contain sessionId.")
 		return
 	}
-	comparison, err := h.agentService.CompareContextStrategies(request.Context(), payload.SessionID)
+	comparison, err := h.agentService.CompareContextStrategies(request.Context(), payload.SessionID, payload.WindowSize)
 	if err != nil {
 		h.writeContextStrategyError(response, err)
 		return
@@ -298,6 +306,8 @@ func (h *Handler) writeContextStrategyError(response http.ResponseWriter, err er
 		writeAPIError(response, http.StatusBadRequest, "session_id_required", "Session ID is required.")
 	case errors.Is(err, application.ErrInvalidContextStrategy):
 		writeAPIError(response, http.StatusBadRequest, "invalid_strategy", "Strategy must be sliding_window, sticky_facts, or branching.")
+	case errors.Is(err, application.ErrInvalidContextWindow):
+		writeAPIError(response, http.StatusBadRequest, "invalid_window_size", "Window size must be between 2 and 20 messages.")
 	case errors.Is(err, application.ErrBranchNotCreated):
 		writeAPIError(response, http.StatusConflict, "branch_not_created", "Create a checkpoint before using this branch.")
 	case errors.Is(err, application.ErrCheckpointRequired):
@@ -310,6 +320,17 @@ func (h *Handler) writeContextStrategyError(response http.ResponseWriter, err er
 		h.logger.Error("context strategy failed", "error", err)
 		writeAPIError(response, http.StatusBadGateway, "strategy_error", "The context strategy lab is temporarily unavailable.")
 	}
+}
+
+func parseStrategyWindowSize(value string) (int, error) {
+	if strings.TrimSpace(value) == "" {
+		return 0, nil
+	}
+	windowSize, err := strconv.Atoi(value)
+	if err != nil {
+		return 0, application.ErrInvalidContextWindow
+	}
+	return windowSize, nil
 }
 
 func (h *Handler) writeAgentMemoryError(response http.ResponseWriter, err error) {

@@ -18,13 +18,15 @@ struct DefaultAIAgentRepository: AIAgentRepository, AgentMemoryRepository, Agent
     func compareContexts(conversationID: String, question: String) async throws -> ContextComparison {
         try await api.compareContexts(conversationID: conversationID, question: question)
     }
-    func state(sessionID: String, strategy: ContextStrategy, branchID: String?) async throws -> ContextStrategyState {
-        try await api.strategyState(sessionID: sessionID, strategy: strategy, branchID: branchID)
+    func state(sessionID: String, strategy: ContextStrategy, branchID: String?, windowSize: Int) async throws -> ContextStrategyState {
+        try await api.strategyState(sessionID: sessionID, strategy: strategy, branchID: branchID, windowSize: windowSize)
     }
-    func send(message: String, sessionID: String, strategy: ContextStrategy, branchID: String?) async throws -> ContextStrategyExchange {
-        try await api.sendStrategy(message: message, sessionID: sessionID, strategy: strategy, branchID: branchID)
+    func send(message: String, sessionID: String, strategy: ContextStrategy, branchID: String?, windowSize: Int) async throws -> ContextStrategyExchange {
+        try await api.sendStrategy(message: message, sessionID: sessionID, strategy: strategy, branchID: branchID, windowSize: windowSize)
     }
     func createBranches(sessionID: String) async throws -> ContextStrategyState { try await api.createStrategyBranches(sessionID: sessionID) }
-    func compare(sessionID: String) async throws -> ContextStrategyComparison { try await api.compareContextStrategies(sessionID: sessionID) }
+    func compare(sessionID: String, windowSize: Int) async throws -> ContextStrategyComparison {
+        try await api.compareContextStrategies(sessionID: sessionID, windowSize: windowSize)
+    }
     func clear(sessionID: String) async throws { try await api.clearContextStrategies(sessionID: sessionID) }
 }

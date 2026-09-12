@@ -19,9 +19,16 @@ struct ContextStrategyMessageRequestDTO: Encodable {
     let sessionId: String
     let strategy: ContextStrategy
     let branchId: String?
+    let windowSize: Int
     let message: String
 }
 
 struct ContextStrategySessionRequestDTO: Encodable {
     let sessionId: String
+    let windowSize: Int?
+
+    init(sessionId: String, windowSize: Int? = nil) {
+        self.sessionId = sessionId
+        self.windowSize = windowSize
+    }
 }

@@ -79,9 +79,10 @@ type ContextStrategyReview struct {
 }
 
 type ContextStrategyComparison struct {
-	SessionID string                  `json:"sessionId"`
-	Scenario  []string                `json:"scenario"`
-	Question  string                  `json:"question"`
-	Results   []ContextStrategyResult `json:"results"`
-	Review    ContextStrategyReview   `json:"review"`
+	SessionID  string                  `json:"sessionId"`
+	WindowSize int                     `json:"windowSize"`
+	Scenario   []string                `json:"scenario"`
+	Question   string                  `json:"question"`
+	Results    []ContextStrategyResult `json:"results"`
+	Review     ContextStrategyReview   `json:"review"`
 }
