@@ -1,4 +1,13 @@
 services:
+  agent-data-init:
+    image: caddy:2.10-alpine
+    user: "0:0"
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["chown -R 65532:65532 /data"]
+    restart: "no"
+    volumes:
+      - agent_data:/data
+
   api:
     build:
       context: ../backend
@@ -11,6 +20,9 @@ services:
       AGENT_DB_PATH: /data/agent.db
     volumes:
       - agent_data:/data
+    depends_on:
+      agent-data-init:
+        condition: service_completed_successfully
     networks:
       - app-network
 
