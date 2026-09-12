@@ -13,11 +13,12 @@ struct AIAgentScreen: View {
                     explanation
                     suggestions
 
-                    if viewModel.messages.isEmpty {
+                    if viewModel.messages.isEmpty && !viewModel.isLoading {
                         emptyState
                     } else {
                         messages
                         if let exchange = viewModel.lastExchange { AgentTraceCard(exchange: exchange) }
+                        if viewModel.isLoading { pendingExchange }
                     }
                     Color.clear.frame(height: 92).id("bottom")
                 }
@@ -26,6 +27,9 @@ struct AIAgentScreen: View {
             .background(Color(.systemGroupedBackground))
             .safeAreaInset(edge: .bottom) { composer }
             .onChange(of: viewModel.messages.count) {
+                withAnimation { proxy.scrollTo("bottom", anchor: .bottom) }
+            }
+            .onChange(of: viewModel.isLoading) {
                 withAnimation { proxy.scrollTo("bottom", anchor: .bottom) }
             }
         }
@@ -100,6 +104,52 @@ struct AIAgentScreen: View {
         }
     }
 
+    private var pendingExchange: some View {
+        VStack(spacing: 12) {
+            if let pendingMessage = viewModel.pendingMessage {
+                HStack {
+                    Spacer(minLength: 48)
+                    VStack(alignment: .leading, spacing: 7) {
+                        Text("ВЫ")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(.white.opacity(0.8))
+                        Text(pendingMessage)
+                            .font(.body)
+                            .lineSpacing(3)
+                    }
+                    .foregroundStyle(.white)
+                    .padding(14)
+                    .background(Color.aiForest, in: RoundedRectangle(cornerRadius: 18))
+                }
+            }
+
+            HStack(alignment: .top, spacing: 12) {
+                ProgressView()
+                    .tint(Color.aiCoral)
+                    .controlSize(.regular)
+                    .padding(.top, 2)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("COMPASS ФОРМИРУЕТ ОТВЕТ")
+                        .font(.system(size: 9, weight: .bold))
+                        .tracking(0.7)
+                        .foregroundStyle(Color.aiCoral)
+                    Text("Применяет настройки агента и ждёт ответ DeepSeek…")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 24)
+            }
+            .padding(14)
+            .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 18))
+            .overlay {
+                RoundedRectangle(cornerRadius: 18)
+                    .stroke(Color.aiCoral.opacity(0.18))
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Compass формирует ответ")
+    }
+
     private var composer: some View {
         HStack(alignment: .bottom, spacing: 10) {
             TextField("Сообщение агенту…", text: $viewModel.input, axis: .vertical)
@@ -112,7 +162,7 @@ struct AIAgentScreen: View {
                     else { Image(systemName: "arrow.up").font(.headline.bold()) }
                 }
                 .frame(width: 46, height: 46).foregroundStyle(.white)
-                .background(viewModel.canSend ? Color.aiCoral : Color(.tertiarySystemFill), in: Circle())
+                .background(viewModel.isLoading || viewModel.canSend ? Color.aiCoral : Color(.tertiarySystemFill), in: Circle())
             }.buttonStyle(.plain).disabled(!viewModel.canSend)
         }
         .padding(.horizontal).padding(.vertical, 10)

@@ -9,6 +9,7 @@ final class AIAgentViewModel {
     private(set) var messages: [AIAgentMessage] = []
     private(set) var lastExchange: AIAgentExchange?
     private(set) var isLoading = false
+    private(set) var pendingMessage: String?
     var errorMessage: String?
 
     private let talkToAgent: TalkToAgentUseCase
@@ -29,9 +30,13 @@ final class AIAgentViewModel {
         let message = input.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !message.isEmpty, !isLoading else { return }
         input = ""
+        pendingMessage = message
         isLoading = true
         errorMessage = nil
-        defer { isLoading = false }
+        defer {
+            pendingMessage = nil
+            isLoading = false
+        }
         do {
             let exchange = try await talkToAgent.execute(message: message)
             profile = exchange.agent
@@ -45,5 +50,11 @@ final class AIAgentViewModel {
     }
 
     func useExample(_ value: String) { input = value }
-    func clear() { guard !isLoading else { return }; messages = []; lastExchange = nil; errorMessage = nil }
+    func clear() {
+        guard !isLoading else { return }
+        messages = []
+        lastExchange = nil
+        pendingMessage = nil
+        errorMessage = nil
+    }
 }
