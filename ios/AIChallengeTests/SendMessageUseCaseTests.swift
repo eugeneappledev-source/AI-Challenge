@@ -4,6 +4,21 @@ import Testing
 
 struct SendMessageUseCaseTests {
     @Test
+    func agentUseCaseLoadsProfileAndForwardsMessage() async throws {
+        let repository = RecordingAIAgentRepository()
+        let useCase = TalkToAgentUseCase(repository: repository)
+
+        let profile = try await useCase.loadProfile()
+        let exchange = try await useCase.execute(message: "Что такое агент?")
+        let messages = await repository.messages
+
+        #expect(profile.name == "Compass")
+        #expect(messages == ["Что такое агент?"])
+        #expect(exchange.reply.content == "Ответ агента")
+        #expect(exchange.trace.count == 4)
+    }
+
+    @Test
     func forwardsMessageAndReturnsReply() async throws {
         let expected = ChatReply(
             answer: "Ответ",
@@ -188,6 +203,34 @@ struct SendMessageUseCaseTests {
         let usage = try JSONDecoder().decode(ModelUsage.self, from: data)
         #expect(usage.promptCacheHitTokens == 0)
         #expect(usage.promptCacheMissTokens == 0)
+    }
+}
+
+private actor RecordingAIAgentRepository: AIAgentRepository {
+    private(set) var messages: [String] = []
+
+    func profile() async throws -> AIAgentProfile {
+        AIAgentProfile(
+            id: "mentor", name: "Compass", role: "AI-наставник",
+            instructions: "Помогай", model: "deepseek-flash",
+            temperature: 0.3, maxOutputTokens: 1000
+        )
+    }
+
+    func send(message: String) async throws -> AIAgentExchange {
+        messages.append(message)
+        let profile = try await profile()
+        return AIAgentExchange(
+            agent: profile,
+            userMessage: AIAgentMessage(id: "u1", role: .user, content: message, createdAt: .now, usage: nil),
+            reply: AIAgentMessage(
+                id: "a1", role: .assistant, content: "Ответ агента", createdAt: .now,
+                usage: ModelUsage(promptTokens: 4, completionTokens: 2, totalTokens: 6)
+            ),
+            model: "deepseek-flash", finishReason: "stop",
+            usage: ModelUsage(promptTokens: 4, completionTokens: 2, totalTokens: 6),
+            trace: ["input", "profile", "provider", "output"]
+        )
     }
 }
 

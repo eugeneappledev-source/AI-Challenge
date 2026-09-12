@@ -223,3 +223,38 @@ func TestGenerateSendsExplicitZeroTemperature(t *testing.T) {
 		t.Fatalf("expected explicit temperature 0, got %v (exists=%v)", value, exists)
 	}
 }
+
+func TestGenerateForwardsExplicitConversationMessages(t *testing.T) {
+	httpClient := &httpClientStub{response: &http.Response{
+		StatusCode: http.StatusOK,
+		Body: io.NopCloser(strings.NewReader(`{
+			"model":"deepseek-flash",
+			"choices":[{"message":{"role":"assistant","content":"Помню"},"finish_reason":"stop"}],
+			"usage":{"prompt_tokens":7,"completion_tokens":1,"total_tokens":8}
+		}`)),
+	}}
+	client := NewClient(Config{APIURL: "https://example.com/chat/completions", APIKey: "secret", Model: "fallback", HTTPClient: httpClient})
+	messages := []domain.ModelMessage{
+		{Role: "system", Content: "Ты агент"},
+		{Role: "user", Content: "Меня зовут Женя"},
+		{Role: "assistant", Content: "Запомнил"},
+		{Role: "user", Content: "Как меня зовут?"},
+	}
+
+	_, err := client.Generate(context.Background(), domain.ModelRequest{Messages: messages})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	var payload chatCompletionRequest
+	if err := json.Unmarshal([]byte(httpClient.body), &payload); err != nil {
+		t.Fatalf("decode captured request: %v", err)
+	}
+	if len(payload.Messages) != len(messages) {
+		t.Fatalf("expected %d messages, got %+v", len(messages), payload.Messages)
+	}
+	for index, expected := range messages {
+		if payload.Messages[index].Role != expected.Role || payload.Messages[index].Content != expected.Content {
+			t.Fatalf("message %d mismatch: %+v", index, payload.Messages[index])
+		}
+	}
+}

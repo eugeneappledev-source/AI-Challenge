@@ -130,6 +130,14 @@ func (c *Client) Generate(ctx context.Context, modelRequest domain.ModelRequest)
 			{Role: "user", Content: modelRequest.UserPrompt},
 		},
 	}
+	if len(modelRequest.Messages) > 0 {
+		payload.Messages = make([]chatCompletionMessage, 0, len(modelRequest.Messages))
+		for _, message := range modelRequest.Messages {
+			payload.Messages = append(payload.Messages, chatCompletionMessage{
+				Role: message.Role, Content: message.Content,
+			})
+		}
+	}
 	if modelRequest.Model != "" {
 		payload.Model = modelRequest.Model
 	}

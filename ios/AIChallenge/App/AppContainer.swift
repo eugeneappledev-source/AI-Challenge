@@ -49,6 +49,18 @@ enum AppContainer {
         return ModelComparisonViewModel(compareModels: CompareModelsUseCase(repository: repository))
     }
 
+    static func makeAgentViewModel() -> AIAgentViewModel {
+        let configuration = AppConfiguration.live()
+        let api = AIAgentAPI(
+            baseURL: configuration.baseURL,
+            accessToken: configuration.accessToken,
+            httpClient: URLSessionHTTPClient(session: .shared)
+        )
+        return AIAgentViewModel(
+            talkToAgent: TalkToAgentUseCase(repository: DefaultAIAgentRepository(api: api))
+        )
+    }
+
     private static func makeSendMessageUseCase() -> SendMessageUseCase {
         let configuration = AppConfiguration.live()
         let httpClient = URLSessionHTTPClient(session: .shared)

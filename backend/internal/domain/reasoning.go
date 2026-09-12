@@ -20,9 +20,15 @@ type ModelRequest struct {
 	Model        string
 	SystemPrompt string
 	UserPrompt   string
+	Messages     []ModelMessage
 	JSON         bool
 	MaxTokens    int
 	Temperature  *float64
+}
+
+type ModelMessage struct {
+	Role    string `json:"role"`
+	Content string `json:"content"`
 }
 
 type ModelResponse struct {

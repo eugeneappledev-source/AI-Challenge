@@ -6,6 +6,7 @@ struct ChallengeCatalogScreen: View {
     let dayThreeViewModel: ReasoningComparisonViewModel
     let dayFourViewModel: TemperatureComparisonViewModel
     let dayFiveViewModel: ModelComparisonViewModel
+    let daySixViewModel: AIAgentViewModel
 
     private let challenges = ChallengeCatalogItem.all
 
@@ -46,6 +47,8 @@ struct ChallengeCatalogScreen: View {
                     TemperatureComparisonScreen(viewModel: dayFourViewModel)
                 case .dayFive:
                     ModelComparisonScreen(viewModel: dayFiveViewModel)
+                case .daySix:
+                    AIAgentScreen(viewModel: daySixViewModel)
                 }
             }
         }
@@ -82,15 +85,15 @@ struct ChallengeCatalogScreen: View {
                     .trim(from: 0, to: 1)
                     .stroke(Color.aiForest, style: StrokeStyle(lineWidth: 7, lineCap: .round))
                     .rotationEffect(.degrees(-90))
-                Text("5/5")
+                Text("6/9")
                     .font(.caption.weight(.bold))
             }
             .frame(width: 54, height: 54)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text("Неделя 1")
+                Text("Общий прогресс")
                     .font(.headline)
-                Text("Все пять заданий первой недели готовы к проверке.")
+                Text("Первая неделя завершена. Начат блок про AI-агентов.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -221,6 +224,7 @@ private enum ChallengeRoute: Hashable {
     case dayThree
     case dayFour
     case dayFive
+    case daySix
 }
 
 private struct ChallengeCatalogItem: Identifiable {
@@ -279,6 +283,15 @@ private struct ChallengeCatalogItem: Identifiable {
             tint: .aiBlue,
             status: .completed,
             route: .dayFive
+        ),
+        ChallengeCatalogItem(
+            number: "06",
+            title: "Первый агент",
+            subtitle: "Отдельная сущность инкапсулирует настройки и вызов LLM.",
+            systemImage: "shippingbox.fill",
+            tint: .aiCoral,
+            status: .completed,
+            route: .daySix
         ),
     ]
 }

@@ -88,6 +88,20 @@ type modelBenchmarkServiceRecorder struct {
 	tier   domain.ModelTier
 }
 
+type agentServiceStub struct {
+	profile  domain.AgentProfile
+	exchange domain.AgentExchange
+	err      error
+}
+
+func (s agentServiceStub) Profile() domain.AgentProfile { return s.profile }
+
+func (s agentServiceStub) Respond(_ context.Context, input string) (domain.AgentExchange, error) {
+	exchange := s.exchange
+	exchange.UserMessage.Content = input
+	return exchange, s.err
+}
+
 func (s *modelBenchmarkServiceRecorder) Run(_ context.Context, prompt string, tier domain.ModelTier) (domain.ModelBenchmarkAttempt, error) {
 	s.prompt = prompt
 	s.tier = tier
@@ -139,6 +153,43 @@ func TestChatRequiresAuthentication(t *testing.T) {
 
 	if response.Code != http.StatusUnauthorized {
 		t.Fatalf("expected 401, got %d", response.Code)
+	}
+}
+
+func TestAgentProfileAndMessageEndpoints(t *testing.T) {
+	service := agentServiceStub{
+		profile:  domain.AgentProfile{ID: "mentor", Name: "Compass", Model: "deepseek-flash"},
+		exchange: domain.AgentExchange{Reply: domain.AgentMessage{Content: "Ответ"}},
+	}
+	handler := newTestHandler(chatServiceStub{}).WithAgentService(service)
+
+	profileRequest := httptest.NewRequest(http.MethodGet, "/v1/agent", nil)
+	profileRequest.Header.Set("Authorization", "Bearer token")
+	profileResponse := httptest.NewRecorder()
+	handler.Routes().ServeHTTP(profileResponse, profileRequest)
+	if profileResponse.Code != http.StatusOK || !strings.Contains(profileResponse.Body.String(), `"name":"Compass"`) {
+		t.Fatalf("unexpected profile response: %d %s", profileResponse.Code, profileResponse.Body.String())
+	}
+
+	messageRequest := httptest.NewRequest(http.MethodPost, "/v1/agent/message", strings.NewReader(`{"message":"Привет"}`))
+	messageRequest.Header.Set("Authorization", "Bearer token")
+	messageResponse := httptest.NewRecorder()
+	handler.Routes().ServeHTTP(messageResponse, messageRequest)
+	if messageResponse.Code != http.StatusOK || !strings.Contains(messageResponse.Body.String(), `"content":"Привет"`) {
+		t.Fatalf("unexpected message response: %d %s", messageResponse.Code, messageResponse.Body.String())
+	}
+}
+
+func TestAgentMessageMapsValidationError(t *testing.T) {
+	handler := newTestHandler(chatServiceStub{}).WithAgentService(agentServiceStub{err: application.ErrEmptyAgentMessage})
+	request := httptest.NewRequest(http.MethodPost, "/v1/agent/message", strings.NewReader(`{"message":""}`))
+	request.Header.Set("Authorization", "Bearer token")
+	response := httptest.NewRecorder()
+
+	handler.Routes().ServeHTTP(response, request)
+
+	if response.Code != http.StatusBadRequest || !strings.Contains(response.Body.String(), `"code":"empty_message"`) {
+		t.Fatalf("unexpected validation response: %d %s", response.Code, response.Body.String())
 	}
 }
 

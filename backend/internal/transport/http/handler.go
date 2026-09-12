@@ -36,14 +36,25 @@ type ModelBenchmarkService interface {
 	Review(ctx context.Context, prompt string, attempts []domain.ModelBenchmarkAttempt) (domain.ModelBenchmarkReview, error)
 }
 
+type AgentService interface {
+	Profile() domain.AgentProfile
+	Respond(ctx context.Context, input string) (domain.AgentExchange, error)
+}
+
 type Handler struct {
 	chatService           ChatService
 	reasoningService      ReasoningService
 	temperatureService    TemperatureService
 	modelBenchmarkService ModelBenchmarkService
+	agentService          AgentService
 	logger                *slog.Logger
 	appAccessToken        string
 	rateLimiter           *rateLimiter
+}
+
+func (h *Handler) WithAgentService(service AgentService) *Handler {
+	h.agentService = service
+	return h
 }
 
 type RateLimitConfig struct {
@@ -81,7 +92,41 @@ func (h *Handler) Routes() http.Handler {
 	mux.Handle("POST /v1/temperature/review", h.requireAccessToken(h.limitRequests(http.HandlerFunc(h.reviewTemperature))))
 	mux.Handle("POST /v1/models/run", h.requireAccessToken(h.limitRequests(http.HandlerFunc(h.runModelBenchmark))))
 	mux.Handle("POST /v1/models/review", h.requireAccessToken(h.limitRequests(http.HandlerFunc(h.reviewModelBenchmark))))
+	if h.agentService != nil {
+		mux.Handle("GET /v1/agent", h.requireAccessToken(http.HandlerFunc(h.agentProfile)))
+		mux.Handle("POST /v1/agent/message", h.requireAccessToken(h.limitRequests(http.HandlerFunc(h.agentMessage))))
+	}
 	return h.logging(h.recoverPanic(mux))
+}
+
+func (h *Handler) agentProfile(response http.ResponseWriter, _ *http.Request) {
+	writeJSON(response, http.StatusOK, h.agentService.Profile())
+}
+
+type agentMessageRequest struct {
+	Message string `json:"message"`
+}
+
+func (h *Handler) agentMessage(response http.ResponseWriter, request *http.Request) {
+	var payload agentMessageRequest
+	if err := decodeRequestJSON(response, request, &payload); err != nil {
+		writeAPIError(response, http.StatusBadRequest, "invalid_request", "Request body must contain a valid message.")
+		return
+	}
+	exchange, err := h.agentService.Respond(request.Context(), payload.Message)
+	if err != nil {
+		switch {
+		case errors.Is(err, application.ErrEmptyAgentMessage):
+			writeAPIError(response, http.StatusBadRequest, "empty_message", "Message is required.")
+		case errors.Is(err, application.ErrAgentMessageTooLong):
+			writeAPIError(response, http.StatusRequestEntityTooLarge, "message_too_long", "Message is too long.")
+		default:
+			h.logger.Error("agent response failed", "error", err)
+			writeAPIError(response, http.StatusBadGateway, "upstream_error", "The agent is temporarily unavailable.")
+		}
+		return
+	}
+	writeJSON(response, http.StatusOK, exchange)
 }
 
 type runModelBenchmarkRequest struct {

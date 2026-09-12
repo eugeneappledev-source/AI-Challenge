@@ -11,15 +11,18 @@
 		0EC9FB3B4AF0DD072D7B917B /* TemperatureComparisonViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7EF0CF9466A93AFBF6BACA96 /* TemperatureComparisonViewModel.swift */; };
 		1209B989EB004DB9BC9095B8 /* NetworkError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B0D604ACA157688B9ED94E9 /* NetworkError.swift */; };
 		32A8034ECDAE24A1E22EDAC2 /* ChatRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C9A95066060B54EE80880DF /* ChatRepository.swift */; };
+		36162082E2BBEEB2CB2521F9 /* AIAgentScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AF56C9C038E67352BF10FDD /* AIAgentScreen.swift */; };
 		45BB32598B3F35B415642C09 /* DefaultChatRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF627C9A5B5F2D3ECB9AB9B9 /* DefaultChatRepository.swift */; };
 		4A58B3D181E71CAFED233E75 /* CompareTemperaturesUseCase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23F4530E659F2497A349EA01 /* CompareTemperaturesUseCase.swift */; };
 		4A6F6EDC2EE081F5F5AAF808 /* ModelComparisonScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFB5D3A07ED3F5C19FF10640 /* ModelComparisonScreen.swift */; };
 		4C0604327534D0798FA71565 /* ReasoningDTO.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B63C6D8522D6987646AAF22 /* ReasoningDTO.swift */; };
 		4DBB3170735349156CEE7403 /* TemperatureExperiment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FEF53FAE79CA7E8056DC62E /* TemperatureExperiment.swift */; };
+		506E3AC9C1B51545DCDBACC4 /* DefaultAIAgentRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBD8E5FC1CF3DB26DD54995F /* DefaultAIAgentRepository.swift */; };
 		5C235B3074A031ABD793A79D /* ReasoningComparisonViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B25FD3415E71DB3BB9CA4C8E /* ReasoningComparisonViewModel.swift */; };
 		60DDE5D2C9C3116E28B9047C /* ChatAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD84298F8EFDD5862E47D2CF /* ChatAPI.swift */; };
 		612DA54276720C064FA50075 /* MessageBubble.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CA9058D4B72C152E8B04242 /* MessageBubble.swift */; };
 		6331BD4B0B3E9ED4A2992797 /* CompareResponsesUseCase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B537704FA489ED5C4C0DDBE /* CompareResponsesUseCase.swift */; };
+		6DD00D1989A72B6B1F5F2256 /* AIAgentViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010EDF051019F721907714D6 /* AIAgentViewModel.swift */; };
 		719C13BE8A2FAADC5C4C2B6C /* TemperatureComparisonScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9ED79F0116812A84AD896E7 /* TemperatureComparisonScreen.swift */; };
 		76F79E951EFD16D15E33548F /* CompareModelsUseCase.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2AE57599684AB93D8F35CAD /* CompareModelsUseCase.swift */; };
 		78C72BA25741CB01929E920C /* TemperatureRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = C18F126DC0877445FF3080E7 /* TemperatureRepository.swift */; };
@@ -32,13 +35,17 @@
 		9EBFBBD804C25BD5145B6435 /* AppConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CB0BB417624CBE49621AB3F /* AppConfiguration.swift */; };
 		9F4B8B9DA9CE4AA77686CA4C /* ModelComparisonViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEBD5DBE09BE497E154879CF /* ModelComparisonViewModel.swift */; };
 		A0933F24E866DCEE8EB9366F /* APIErrorDTO.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEEEFC5C9B609A926FBF7467 /* APIErrorDTO.swift */; };
+		A2427CED350F7945C73FEEDB /* AIAgent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7474F21444CBA42791A64ECD /* AIAgent.swift */; };
 		A25826D84142952A7312BD66 /* TemperatureDTO.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BEAE94D7978BBC3F2FEB038 /* TemperatureDTO.swift */; };
 		A41E09C494105C3994FE8A95 /* ChatMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF6C0766D01BA44EC64539D8 /* ChatMessage.swift */; };
 		A60D702F0532742538FEBCCA /* AppContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56047B5C5175BC9A5B624D1A /* AppContainer.swift */; };
+		A6F58DDCD623B8DEE8B8AD2A /* AIAgentRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1887505C71BBAAD53C8934B6 /* AIAgentRepository.swift */; };
 		B39C4D7F9B609B80BB9F93A2 /* DefaultModelBenchmarkRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AFC99B60380CB9AE1C8FAA4 /* DefaultModelBenchmarkRepository.swift */; };
 		B4AEB316116EA61C13B7E1A7 /* TemperatureAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9C5C17D52ACF0E78F53565F /* TemperatureAPI.swift */; };
 		B651AD4E1B7285F9D643A317 /* CompareReasoningStrategiesUseCase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07A5CE63A6DEC2C16BDC596C /* CompareReasoningStrategiesUseCase.swift */; };
+		B6F9BBD3EF57E964C231108A /* AIAgentAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = D369DB5486C58E6202576CB3 /* AIAgentAPI.swift */; };
 		C4B04D5E125443183A0E97A0 /* SendMessageUseCaseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 543D0FF50CC9F2AE957FD7B4 /* SendMessageUseCaseTests.swift */; };
+		C8B8F40CFEA3913C2FA58742 /* AIAgentDTO.swift in Sources */ = {isa = PBXBuildFile; fileRef = BABDA523AA4C55F182C85ECC /* AIAgentDTO.swift */; };
 		CEAAB2611A58FE960587CAA5 /* DayOneViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DFB97A3FB38BA8631D55D02 /* DayOneViewModel.swift */; };
 		CFFF4C7140AA36DBA94B8EF7 /* ChatRequestDTO.swift in Sources */ = {isa = PBXBuildFile; fileRef = E623D238DE32167664F26731 /* ChatRequestDTO.swift */; };
 		D06BB70DF65BCB43D1BE7DF9 /* MessageInputView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3846B620896C3F8660B5C39 /* MessageInputView.swift */; };
@@ -48,6 +55,7 @@
 		E0791C8005906EE0FDE57C23 /* ReasoningRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 586AB23B233FAFA0DE93BC42 /* ReasoningRepository.swift */; };
 		E324CEC46B108EE11F3DC1C6 /* URLSessionHTTPClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27EDDF06D0B255A968C0DE66 /* URLSessionHTTPClient.swift */; };
 		E360A02A562B5290187BC268 /* ReasoningComparisonScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5955D438481D8C999503A87E /* ReasoningComparisonScreen.swift */; };
+		E3DE98C0FD9F7CB942811927 /* TalkToAgentUseCase.swift in Sources */ = {isa = PBXBuildFile; fileRef = A73908A5EECDD575D8F354F2 /* TalkToAgentUseCase.swift */; };
 		E5979866DD5CF3E19B05E121 /* Reasoning.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6B0F6994375C702E449A2EB /* Reasoning.swift */; };
 		E64F1F3E0D61FA33B7342A69 /* ChatScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1F7A05267CFADA311921737 /* ChatScreen.swift */; };
 		ED66A16665037D6E52602D13 /* AITheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A0C2451302D12D4A183E3B6 /* AITheme.swift */; };
@@ -69,9 +77,11 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		010EDF051019F721907714D6 /* AIAgentViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIAgentViewModel.swift; sourceTree = "<group>"; };
 		07A5CE63A6DEC2C16BDC596C /* CompareReasoningStrategiesUseCase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompareReasoningStrategiesUseCase.swift; sourceTree = "<group>"; };
 		080CAD5C83B71FC309FBEAD5 /* AIChallenge.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = AIChallenge.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		098F1179F29CB1F9A90D9FA1 /* ChatResponseDTO.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatResponseDTO.swift; sourceTree = "<group>"; };
+		1887505C71BBAAD53C8934B6 /* AIAgentRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIAgentRepository.swift; sourceTree = "<group>"; };
 		1BEAE94D7978BBC3F2FEB038 /* TemperatureDTO.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemperatureDTO.swift; sourceTree = "<group>"; };
 		1CA9058D4B72C152E8B04242 /* MessageBubble.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageBubble.swift; sourceTree = "<group>"; };
 		1FEF53FAE79CA7E8056DC62E /* TemperatureExperiment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemperatureExperiment.swift; sourceTree = "<group>"; };
@@ -89,10 +99,12 @@
 		57D3F3E59C178BFDE5DD6FFD /* DayOneScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayOneScreen.swift; sourceTree = "<group>"; };
 		586AB23B233FAFA0DE93BC42 /* ReasoningRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReasoningRepository.swift; sourceTree = "<group>"; };
 		5955D438481D8C999503A87E /* ReasoningComparisonScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReasoningComparisonScreen.swift; sourceTree = "<group>"; };
+		5AF56C9C038E67352BF10FDD /* AIAgentScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIAgentScreen.swift; sourceTree = "<group>"; };
 		5AFC99B60380CB9AE1C8FAA4 /* DefaultModelBenchmarkRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DefaultModelBenchmarkRepository.swift; sourceTree = "<group>"; };
 		5CB0BB417624CBE49621AB3F /* AppConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfiguration.swift; sourceTree = "<group>"; };
 		5DFB97A3FB38BA8631D55D02 /* DayOneViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayOneViewModel.swift; sourceTree = "<group>"; };
 		6C56BC58FE020F7466015BE4 /* App.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = App.xcconfig; sourceTree = "<group>"; };
+		7474F21444CBA42791A64ECD /* AIAgent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIAgent.swift; sourceTree = "<group>"; };
 		78D3A8A3317FC05C96705311 /* AIChallengeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIChallengeApp.swift; sourceTree = "<group>"; };
 		7A0C2451302D12D4A183E3B6 /* AITheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AITheme.swift; sourceTree = "<group>"; };
 		7B537704FA489ED5C4C0DDBE /* CompareResponsesUseCase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompareResponsesUseCase.swift; sourceTree = "<group>"; };
@@ -101,9 +113,11 @@
 		85F051EC7B6DFF233E3A765B /* ChatReply.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatReply.swift; sourceTree = "<group>"; };
 		9653D39E22A786D8EEE0FF23 /* AIChallengeTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = AIChallengeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		9C42590EBD75F7D45004C595 /* ChatViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatViewModel.swift; sourceTree = "<group>"; };
+		A73908A5EECDD575D8F354F2 /* TalkToAgentUseCase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TalkToAgentUseCase.swift; sourceTree = "<group>"; };
 		A9C5C17D52ACF0E78F53565F /* TemperatureAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemperatureAPI.swift; sourceTree = "<group>"; };
 		B25FD3415E71DB3BB9CA4C8E /* ReasoningComparisonViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReasoningComparisonViewModel.swift; sourceTree = "<group>"; };
 		B9ED79F0116812A84AD896E7 /* TemperatureComparisonScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemperatureComparisonScreen.swift; sourceTree = "<group>"; };
+		BABDA523AA4C55F182C85ECC /* AIAgentDTO.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIAgentDTO.swift; sourceTree = "<group>"; };
 		BD84298F8EFDD5862E47D2CF /* ChatAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatAPI.swift; sourceTree = "<group>"; };
 		BF6C0766D01BA44EC64539D8 /* ChatMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatMessage.swift; sourceTree = "<group>"; };
 		BFB5D3A07ED3F5C19FF10640 /* ModelComparisonScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelComparisonScreen.swift; sourceTree = "<group>"; };
@@ -116,11 +130,13 @@
 		D03352D3690C93DEF873C742 /* ModelBenchmarkRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelBenchmarkRepository.swift; sourceTree = "<group>"; };
 		D1F7A05267CFADA311921737 /* ChatScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatScreen.swift; sourceTree = "<group>"; };
 		D2AE57599684AB93D8F35CAD /* CompareModelsUseCase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompareModelsUseCase.swift; sourceTree = "<group>"; };
+		D369DB5486C58E6202576CB3 /* AIAgentAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIAgentAPI.swift; sourceTree = "<group>"; };
 		D782CF6167DCAD5DEBD2052F /* ChallengeCatalogScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChallengeCatalogScreen.swift; sourceTree = "<group>"; };
 		DEBD5DBE09BE497E154879CF /* ModelComparisonViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelComparisonViewModel.swift; sourceTree = "<group>"; };
 		E623D238DE32167664F26731 /* ChatRequestDTO.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatRequestDTO.swift; sourceTree = "<group>"; };
 		E6872C26C340A28BBC703E14 /* HTTPClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTTPClient.swift; sourceTree = "<group>"; };
 		E6B0F6994375C702E449A2EB /* Reasoning.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Reasoning.swift; sourceTree = "<group>"; };
+		EBD8E5FC1CF3DB26DD54995F /* DefaultAIAgentRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DefaultAIAgentRepository.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -130,6 +146,14 @@
 				DEBD5DBE09BE497E154879CF /* ModelComparisonViewModel.swift */,
 			);
 			path = Presentation;
+			sourceTree = "<group>";
+		};
+		1293115B383E8394E8AF2709 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				5AF56C9C038E67352BF10FDD /* AIAgentScreen.swift */,
+			);
+			path = Views;
 			sourceTree = "<group>";
 		};
 		14BB796C528D879866C4AF2E /* Core */ = {
@@ -163,6 +187,7 @@
 		29054E0A86659BCEB13CE1F3 /* DTO */ = {
 			isa = PBXGroup;
 			children = (
+				BABDA523AA4C55F182C85ECC /* AIAgentDTO.swift */,
 				CEEEFC5C9B609A926FBF7467 /* APIErrorDTO.swift */,
 				E623D238DE32167664F26731 /* ChatRequestDTO.swift */,
 				098F1179F29CB1F9A90D9FA1 /* ChatResponseDTO.swift */,
@@ -176,6 +201,7 @@
 		2AFF244D52E839009458C997 /* API */ = {
 			isa = PBXGroup;
 			children = (
+				D369DB5486C58E6202576CB3 /* AIAgentAPI.swift */,
 				BD84298F8EFDD5862E47D2CF /* ChatAPI.swift */,
 				20305B594FA409A7D29132A5 /* ModelBenchmarkAPI.swift */,
 				2EC11CFAEC1906A8C87EB57D /* ReasoningAPI.swift */,
@@ -219,6 +245,7 @@
 		525A71CB5012F02D6651BE9B /* Repositories */ = {
 			isa = PBXGroup;
 			children = (
+				EBD8E5FC1CF3DB26DD54995F /* DefaultAIAgentRepository.swift */,
 				CF627C9A5B5F2D3ECB9AB9B9 /* DefaultChatRepository.swift */,
 				5AFC99B60380CB9AE1C8FAA4 /* DefaultModelBenchmarkRepository.swift */,
 				2901EE2D7BBA1BFD1C2D6DBA /* DefaultReasoningRepository.swift */,
@@ -249,6 +276,7 @@
 		6423B55B895D893A3B37FB05 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				7474F21444CBA42791A64ECD /* AIAgent.swift */,
 				BF6C0766D01BA44EC64539D8 /* ChatMessage.swift */,
 				85F051EC7B6DFF233E3A765B /* ChatReply.swift */,
 				3EE619C6FEC6FCE944CCF32F /* ModelBenchmark.swift */,
@@ -286,6 +314,7 @@
 		9F1A61673C35343CD94F33D0 /* Features */ = {
 			isa = PBXGroup;
 			children = (
+				DEFAB63544D94544250871A4 /* Agent */,
 				E4AC459AD44E2CDDEEB43F9A /* Catalog */,
 				5EEC7AF6514D72853A4CFC97 /* Chat */,
 				8D559A978C0D4BE521BA77B3 /* DayOne */,
@@ -309,6 +338,7 @@
 		A54D9D00A425E4197D82B77B /* Repositories */ = {
 			isa = PBXGroup;
 			children = (
+				1887505C71BBAAD53C8934B6 /* AIAgentRepository.swift */,
 				4C9A95066060B54EE80880DF /* ChatRepository.swift */,
 				D03352D3690C93DEF873C742 /* ModelBenchmarkRepository.swift */,
 				586AB23B233FAFA0DE93BC42 /* ReasoningRepository.swift */,
@@ -342,6 +372,7 @@
 				7B537704FA489ED5C4C0DDBE /* CompareResponsesUseCase.swift */,
 				23F4530E659F2497A349EA01 /* CompareTemperaturesUseCase.swift */,
 				21D930733FCB9A5F7108684C /* SendMessageUseCase.swift */,
+				A73908A5EECDD575D8F354F2 /* TalkToAgentUseCase.swift */,
 			);
 			path = UseCases;
 			sourceTree = "<group>";
@@ -373,6 +404,23 @@
 				9F1A61673C35343CD94F33D0 /* Features */,
 			);
 			path = AIChallenge;
+			sourceTree = "<group>";
+		};
+		DBFD03A1AFBD4CAD13CF63C0 /* Presentation */ = {
+			isa = PBXGroup;
+			children = (
+				010EDF051019F721907714D6 /* AIAgentViewModel.swift */,
+			);
+			path = Presentation;
+			sourceTree = "<group>";
+		};
+		DEFAB63544D94544250871A4 /* Agent */ = {
+			isa = PBXGroup;
+			children = (
+				DBFD03A1AFBD4CAD13CF63C0 /* Presentation */,
+				1293115B383E8394E8AF2709 /* Views */,
+			);
+			path = Agent;
 			sourceTree = "<group>";
 		};
 		DFA4CBE003D9056B1DDBA2B8 = {
@@ -520,6 +568,12 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A2427CED350F7945C73FEEDB /* AIAgent.swift in Sources */,
+				B6F9BBD3EF57E964C231108A /* AIAgentAPI.swift in Sources */,
+				C8B8F40CFEA3913C2FA58742 /* AIAgentDTO.swift in Sources */,
+				A6F58DDCD623B8DEE8B8AD2A /* AIAgentRepository.swift in Sources */,
+				36162082E2BBEEB2CB2521F9 /* AIAgentScreen.swift in Sources */,
+				6DD00D1989A72B6B1F5F2256 /* AIAgentViewModel.swift in Sources */,
 				EDCA6DC90ED0C3724CE455FA /* AIChallengeApp.swift in Sources */,
 				ED66A16665037D6E52602D13 /* AITheme.swift in Sources */,
 				A0933F24E866DCEE8EB9366F /* APIErrorDTO.swift in Sources */,
@@ -540,6 +594,7 @@
 				4A58B3D181E71CAFED233E75 /* CompareTemperaturesUseCase.swift in Sources */,
 				828158D4CE38E3632944DBD0 /* DayOneScreen.swift in Sources */,
 				CEAAB2611A58FE960587CAA5 /* DayOneViewModel.swift in Sources */,
+				506E3AC9C1B51545DCDBACC4 /* DefaultAIAgentRepository.swift in Sources */,
 				45BB32598B3F35B415642C09 /* DefaultChatRepository.swift in Sources */,
 				B39C4D7F9B609B80BB9F93A2 /* DefaultModelBenchmarkRepository.swift in Sources */,
 				F12614CF1EFC1309A81A63B3 /* DefaultReasoningRepository.swift in Sources */,
@@ -561,6 +616,7 @@
 				4C0604327534D0798FA71565 /* ReasoningDTO.swift in Sources */,
 				E0791C8005906EE0FDE57C23 /* ReasoningRepository.swift in Sources */,
 				D4449EE3A9007D9A0B8430AB /* SendMessageUseCase.swift in Sources */,
+				E3DE98C0FD9F7CB942811927 /* TalkToAgentUseCase.swift in Sources */,
 				B4AEB316116EA61C13B7E1A7 /* TemperatureAPI.swift in Sources */,
 				719C13BE8A2FAADC5C4C2B6C /* TemperatureComparisonScreen.swift in Sources */,
 				0EC9FB3B4AF0DD072D7B917B /* TemperatureComparisonViewModel.swift in Sources */,
