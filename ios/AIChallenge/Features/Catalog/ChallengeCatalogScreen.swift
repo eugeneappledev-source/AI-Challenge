@@ -10,6 +10,7 @@ struct ChallengeCatalogScreen: View {
     let daySevenViewModel: AgentMemoryViewModel
     let dayEightViewModel: TokenLabViewModel
     let dayNineViewModel: ContextCompressionViewModel
+    let dayTenViewModel: ContextStrategiesViewModel
 
     private let challenges = ChallengeCatalogItem.all
 
@@ -58,6 +59,8 @@ struct ChallengeCatalogScreen: View {
                     TokenLabScreen(viewModel: dayEightViewModel)
                 case .dayNine:
                     ContextCompressionScreen(viewModel: dayNineViewModel)
+                case .dayTen:
+                    ContextStrategiesScreen(viewModel: dayTenViewModel)
                 }
             }
         }
@@ -78,7 +81,7 @@ struct ChallengeCatalogScreen: View {
                 .font(.system(.largeTitle, design: .rounded, weight: .bold))
                 .minimumScaleFactor(0.82)
 
-            Text("Одно приложение развивается вместе с заданиями — от первого API-запроса до сравнения параметров и версий моделей.")
+            Text("Одно приложение развивается вместе с заданиями — от первого API-запроса до памяти, веток и стратегий контекста.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .lineSpacing(3)
@@ -94,7 +97,7 @@ struct ChallengeCatalogScreen: View {
                     .trim(from: 0, to: 1)
                     .stroke(Color.aiForest, style: StrokeStyle(lineWidth: 7, lineCap: .round))
                     .rotationEffect(.degrees(-90))
-                Text("9/9")
+                Text("10/10")
                     .font(.caption.weight(.bold))
             }
             .frame(width: 54, height: 54)
@@ -102,7 +105,7 @@ struct ChallengeCatalogScreen: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Общий прогресс")
                     .font(.headline)
-                Text("Первая неделя завершена. Начат блок про AI-агентов.")
+                Text("Десять заданий завершены. Агент умеет выбирать стратегию памяти.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -237,6 +240,7 @@ private enum ChallengeRoute: Hashable {
     case daySeven
     case dayEight
     case dayNine
+    case dayTen
 }
 
 private struct ChallengeCatalogItem: Identifiable {
@@ -331,6 +335,15 @@ private struct ChallengeCatalogItem: Identifiable {
             tint: .aiForest,
             status: .completed,
             route: .dayNine
+        ),
+        ChallengeCatalogItem(
+            number: "10",
+            title: "Стратегии контекста",
+            subtitle: "Sliding Window, Sticky Facts и независимые ветки от checkpoint.",
+            systemImage: "arrow.triangle.branch",
+            tint: .aiCoral,
+            status: .completed,
+            route: .dayTen
         ),
     ]
 }

@@ -89,6 +89,68 @@ struct AIAgentAPI: Sendable {
         return try await perform(request, as: ContextComparison.self)
     }
 
+    func strategyState(sessionID: String, strategy: ContextStrategy, branchID: String?) async throws -> ContextStrategyState {
+        var components = URLComponents(url: baseURL.appending(path: "v1/agent/strategies/state"), resolvingAgainstBaseURL: false)
+        components?.queryItems = [
+            URLQueryItem(name: "sessionId", value: sessionID),
+            URLQueryItem(name: "strategy", value: strategy.rawValue),
+            URLQueryItem(name: "branchId", value: branchID),
+        ]
+        guard let url = components?.url else { throw NetworkError.invalidResponse }
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 60
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        authorize(&request)
+        return try await perform(request, as: ContextStrategyState.self)
+    }
+
+    func sendStrategy(message: String, sessionID: String, strategy: ContextStrategy, branchID: String?) async throws -> ContextStrategyExchange {
+        var request = URLRequest(url: baseURL.appending(path: "v1/agent/strategies/message"))
+        request.httpMethod = "POST"
+        request.timeoutInterval = 150
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        authorize(&request)
+        request.httpBody = try JSONEncoder().encode(ContextStrategyMessageRequestDTO(sessionId: sessionID, strategy: strategy, branchId: branchID, message: message))
+        return try await perform(request, as: ContextStrategyExchange.self)
+    }
+
+    func createStrategyBranches(sessionID: String) async throws -> ContextStrategyState {
+        var request = URLRequest(url: baseURL.appending(path: "v1/agent/strategies/branches"))
+        request.httpMethod = "POST"
+        request.timeoutInterval = 60
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        authorize(&request)
+        request.httpBody = try JSONEncoder().encode(ContextStrategySessionRequestDTO(sessionId: sessionID))
+        return try await perform(request, as: ContextStrategyState.self)
+    }
+
+    func compareContextStrategies(sessionID: String) async throws -> ContextStrategyComparison {
+        var request = URLRequest(url: baseURL.appending(path: "v1/agent/strategies/compare"))
+        request.httpMethod = "POST"
+        request.timeoutInterval = 300
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        authorize(&request)
+        request.httpBody = try JSONEncoder().encode(ContextStrategySessionRequestDTO(sessionId: sessionID))
+        return try await perform(request, as: ContextStrategyComparison.self)
+    }
+
+    func clearContextStrategies(sessionID: String) async throws {
+        var components = URLComponents(url: baseURL.appending(path: "v1/agent/strategies"), resolvingAgainstBaseURL: false)
+        components?.queryItems = [URLQueryItem(name: "sessionId", value: sessionID)]
+        guard let url = components?.url else { throw NetworkError.invalidResponse }
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+        request.timeoutInterval = 60
+        authorize(&request)
+        let (_, response) = try await httpClient.data(for: request)
+        guard response.statusCode == 204 else {
+            throw NetworkError.httpStatus(code: response.statusCode, message: "Не удалось очистить Context Lab.")
+        }
+    }
+
     private func send(message: String, conversationID: String?, compression: Bool = false) async throws -> AIAgentExchange {
         var request = URLRequest(url: baseURL.appending(path: "v1/agent/message"))
         request.httpMethod = "POST"

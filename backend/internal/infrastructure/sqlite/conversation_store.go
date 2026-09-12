@@ -3,6 +3,7 @@ package sqlite
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -55,9 +56,31 @@ func (s *ConversationStore) migrate(ctx context.Context) error {
 			updated_at TEXT NOT NULL,
 			PRIMARY KEY (conversation_id, agent_id)
 		);
+		CREATE TABLE IF NOT EXISTS agent_facts (
+			session_id TEXT NOT NULL,
+			agent_id TEXT NOT NULL,
+			facts_json TEXT NOT NULL,
+			updated_at TEXT NOT NULL,
+			PRIMARY KEY (session_id, agent_id)
+		);
 	`)
 	if err != nil {
 		return fmt.Errorf("migrate agent database: %w", err)
+	}
+	return nil
+}
+
+func (s *ConversationStore) Trim(ctx context.Context, conversationID, agentID string, keep int) error {
+	if keep < 0 {
+		keep = 0
+	}
+	_, err := s.db.ExecContext(ctx, `DELETE FROM agent_messages
+		WHERE conversation_id = ? AND agent_id = ? AND sequence NOT IN (
+			SELECT sequence FROM agent_messages WHERE conversation_id = ? AND agent_id = ?
+			ORDER BY sequence DESC LIMIT ?
+		)`, conversationID, agentID, conversationID, agentID, keep)
+	if err != nil {
+		return fmt.Errorf("trim conversation: %w", err)
 	}
 	return nil
 }
@@ -171,6 +194,45 @@ func (s *ConversationStore) SaveSummary(ctx context.Context, summary domain.Conv
 		summary.ConversationID, summary.AgentID, summary.Content, summary.CoveredMessages, summary.UpdatedAt.Format(time.RFC3339Nano))
 	if err != nil {
 		return fmt.Errorf("save summary: %w", err)
+	}
+	return nil
+}
+
+func (s *ConversationStore) LoadFacts(ctx context.Context, sessionID, agentID string) (map[string]string, error) {
+	var raw string
+	err := s.db.QueryRowContext(ctx, `SELECT facts_json FROM agent_facts WHERE session_id = ? AND agent_id = ?`, sessionID, agentID).Scan(&raw)
+	if err == sql.ErrNoRows {
+		return map[string]string{}, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("load agent facts: %w", err)
+	}
+	facts := map[string]string{}
+	if err := json.Unmarshal([]byte(raw), &facts); err != nil {
+		return nil, fmt.Errorf("decode agent facts: %w", err)
+	}
+	return facts, nil
+}
+
+func (s *ConversationStore) SaveFacts(ctx context.Context, sessionID, agentID string, facts map[string]string, updatedAt time.Time) error {
+	raw, err := json.Marshal(facts)
+	if err != nil {
+		return fmt.Errorf("encode agent facts: %w", err)
+	}
+	_, err = s.db.ExecContext(ctx, `INSERT INTO agent_facts
+		(session_id, agent_id, facts_json, updated_at) VALUES (?, ?, ?, ?)
+		ON CONFLICT(session_id, agent_id) DO UPDATE SET
+		facts_json = excluded.facts_json, updated_at = excluded.updated_at`,
+		sessionID, agentID, string(raw), updatedAt.Format(time.RFC3339Nano))
+	if err != nil {
+		return fmt.Errorf("save agent facts: %w", err)
+	}
+	return nil
+}
+
+func (s *ConversationStore) ClearFacts(ctx context.Context, sessionID, agentID string) error {
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM agent_facts WHERE session_id = ? AND agent_id = ?`, sessionID, agentID); err != nil {
+		return fmt.Errorf("clear agent facts: %w", err)
 	}
 	return nil
 }

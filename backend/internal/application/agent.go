@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync/atomic"
 	"time"
 	"unicode/utf8"
 
@@ -22,8 +23,12 @@ type ConversationStore interface {
 	Load(ctx context.Context, conversationID, agentID string) (domain.AgentConversation, error)
 	Append(ctx context.Context, conversationID, agentID string, messages ...domain.AgentMessage) error
 	Clear(ctx context.Context, conversationID, agentID string) error
+	Trim(ctx context.Context, conversationID, agentID string, keep int) error
 	LoadSummary(ctx context.Context, conversationID, agentID string) (domain.ConversationSummary, error)
 	SaveSummary(ctx context.Context, summary domain.ConversationSummary) error
+	LoadFacts(ctx context.Context, sessionID, agentID string) (map[string]string, error)
+	SaveFacts(ctx context.Context, sessionID, agentID string, facts map[string]string, updatedAt time.Time) error
+	ClearFacts(ctx context.Context, sessionID, agentID string) error
 }
 
 type Agent struct {
@@ -32,6 +37,7 @@ type Agent struct {
 	maxMessageRunes int
 	now             func() time.Time
 	store           ConversationStore
+	idCounter       atomic.Uint64
 }
 
 func (a *Agent) WithMemory(store ConversationStore) *Agent {
@@ -321,7 +327,7 @@ func (a *Agent) respond(ctx context.Context, conversationID string, history []do
 
 	temperature := a.profile.Temperature
 	now := a.now().UTC()
-	userMessage := domain.AgentMessage{ID: newID("usr", now), Role: "user", Content: normalized, CreatedAt: now}
+	userMessage := domain.AgentMessage{ID: a.nextMessageID("usr", now), Role: "user", Content: normalized, CreatedAt: now}
 	messages := make([]domain.ModelMessage, 0, len(history)+2)
 	if conversationID != "" {
 		messages = append(messages, domain.ModelMessage{Role: "system", Content: a.profile.Instructions})
@@ -342,7 +348,7 @@ func (a *Agent) respond(ctx context.Context, conversationID string, history []do
 		return domain.AgentExchange{}, err
 	}
 	usage := response.Usage
-	reply := domain.AgentMessage{ID: newID("asst", now.Add(time.Nanosecond)), Role: "assistant", Content: response.Content, CreatedAt: now, Usage: &usage}
+	reply := domain.AgentMessage{ID: a.nextMessageID("asst", now.Add(time.Nanosecond)), Role: "assistant", Content: response.Content, CreatedAt: now, Usage: &usage}
 	if conversationID != "" {
 		if err := a.store.Append(ctx, conversationID, a.profile.ID, userMessage, reply); err != nil {
 			return domain.AgentExchange{}, err
@@ -363,4 +369,8 @@ func (a *Agent) respond(ctx context.Context, conversationID string, history []do
 
 func newID(prefix string, moment time.Time) string {
 	return prefix + "_" + moment.Format("20060102T150405.000000000")
+}
+
+func (a *Agent) nextMessageID(prefix string, moment time.Time) string {
+	return fmt.Sprintf("%s_%d", newID(prefix, moment), a.idCounter.Add(1))
 }

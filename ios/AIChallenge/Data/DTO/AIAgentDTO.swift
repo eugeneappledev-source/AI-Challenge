@@ -14,3 +14,14 @@ struct ContextComparisonRequestDTO: Encodable {
     let conversationId: String
     let question: String
 }
+
+struct ContextStrategyMessageRequestDTO: Encodable {
+    let sessionId: String
+    let strategy: ContextStrategy
+    let branchId: String?
+    let message: String
+}
+
+struct ContextStrategySessionRequestDTO: Encodable {
+    let sessionId: String
+}

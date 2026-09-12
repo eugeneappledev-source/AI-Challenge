@@ -26,8 +26,8 @@ struct AIAgentMessage: Codable, Equatable, Identifiable, Sendable {
 
 struct AIAgentExchange: Codable, Equatable, Sendable {
     let agent: AIAgentProfile
-    let conversationId: String? = nil
-    let historyCount: Int? = nil
+    var conversationId: String? = nil
+    var historyCount: Int? = nil
     let userMessage: AIAgentMessage
     let reply: AIAgentMessage
     let model: String

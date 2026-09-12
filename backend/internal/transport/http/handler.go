@@ -46,6 +46,11 @@ type AgentService interface {
 	RespondWithCompression(ctx context.Context, conversationID, input string) (domain.AgentExchange, error)
 	ContextState(ctx context.Context, conversationID string) (domain.ContextState, error)
 	CompareContexts(ctx context.Context, conversationID, question string) (domain.ContextComparison, error)
+	RespondWithStrategy(ctx context.Context, sessionID string, strategy domain.ContextStrategy, branchID, input string) (domain.ContextStrategyExchange, error)
+	StrategyState(ctx context.Context, sessionID string, strategy domain.ContextStrategy, branchID string) (domain.ContextStrategyState, error)
+	CreateStrategyBranches(ctx context.Context, sessionID string) (domain.ContextStrategyState, error)
+	CompareContextStrategies(ctx context.Context, sessionID string) (domain.ContextStrategyComparison, error)
+	ClearContextStrategies(ctx context.Context, sessionID string) error
 }
 
 type Handler struct {
@@ -107,6 +112,11 @@ func (h *Handler) Routes() http.Handler {
 		mux.Handle("GET /v1/agent/tokens", h.requireAccessToken(http.HandlerFunc(h.agentTokens)))
 		mux.Handle("GET /v1/agent/context", h.requireAccessToken(http.HandlerFunc(h.agentContext)))
 		mux.Handle("POST /v1/agent/context/compare", h.requireAccessToken(h.limitRequests(http.HandlerFunc(h.compareAgentContext))))
+		mux.Handle("POST /v1/agent/strategies/message", h.requireAccessToken(h.limitRequests(http.HandlerFunc(h.strategyMessage))))
+		mux.Handle("GET /v1/agent/strategies/state", h.requireAccessToken(http.HandlerFunc(h.strategyState)))
+		mux.Handle("POST /v1/agent/strategies/branches", h.requireAccessToken(http.HandlerFunc(h.createStrategyBranches)))
+		mux.Handle("POST /v1/agent/strategies/compare", h.requireAccessToken(h.limitRequests(http.HandlerFunc(h.compareContextStrategies))))
+		mux.Handle("DELETE /v1/agent/strategies", h.requireAccessToken(http.HandlerFunc(h.clearContextStrategies)))
 	}
 	return h.logging(h.recoverPanic(mux))
 }
@@ -207,6 +217,99 @@ func (h *Handler) compareAgentContext(response http.ResponseWriter, request *htt
 		return
 	}
 	writeJSON(response, http.StatusOK, comparison)
+}
+
+type contextStrategyMessageRequest struct {
+	SessionID string                 `json:"sessionId"`
+	Strategy  domain.ContextStrategy `json:"strategy"`
+	BranchID  string                 `json:"branchId,omitempty"`
+	Message   string                 `json:"message"`
+}
+
+func (h *Handler) strategyMessage(response http.ResponseWriter, request *http.Request) {
+	var payload contextStrategyMessageRequest
+	if err := decodeRequestJSON(response, request, &payload); err != nil {
+		writeAPIError(response, http.StatusBadRequest, "invalid_request", "Request must contain sessionId, strategy and message.")
+		return
+	}
+	exchange, err := h.agentService.RespondWithStrategy(request.Context(), payload.SessionID, payload.Strategy, payload.BranchID, payload.Message)
+	if err != nil {
+		h.writeContextStrategyError(response, err)
+		return
+	}
+	writeJSON(response, http.StatusOK, exchange)
+}
+
+func (h *Handler) strategyState(response http.ResponseWriter, request *http.Request) {
+	state, err := h.agentService.StrategyState(
+		request.Context(), request.URL.Query().Get("sessionId"),
+		domain.ContextStrategy(request.URL.Query().Get("strategy")), request.URL.Query().Get("branchId"),
+	)
+	if err != nil {
+		h.writeContextStrategyError(response, err)
+		return
+	}
+	writeJSON(response, http.StatusOK, state)
+}
+
+type contextStrategySessionRequest struct {
+	SessionID string `json:"sessionId"`
+}
+
+func (h *Handler) createStrategyBranches(response http.ResponseWriter, request *http.Request) {
+	var payload contextStrategySessionRequest
+	if err := decodeRequestJSON(response, request, &payload); err != nil {
+		writeAPIError(response, http.StatusBadRequest, "invalid_request", "Request must contain sessionId.")
+		return
+	}
+	state, err := h.agentService.CreateStrategyBranches(request.Context(), payload.SessionID)
+	if err != nil {
+		h.writeContextStrategyError(response, err)
+		return
+	}
+	writeJSON(response, http.StatusOK, state)
+}
+
+func (h *Handler) compareContextStrategies(response http.ResponseWriter, request *http.Request) {
+	var payload contextStrategySessionRequest
+	if err := decodeRequestJSON(response, request, &payload); err != nil {
+		writeAPIError(response, http.StatusBadRequest, "invalid_request", "Request must contain sessionId.")
+		return
+	}
+	comparison, err := h.agentService.CompareContextStrategies(request.Context(), payload.SessionID)
+	if err != nil {
+		h.writeContextStrategyError(response, err)
+		return
+	}
+	writeJSON(response, http.StatusOK, comparison)
+}
+
+func (h *Handler) clearContextStrategies(response http.ResponseWriter, request *http.Request) {
+	if err := h.agentService.ClearContextStrategies(request.Context(), request.URL.Query().Get("sessionId")); err != nil {
+		h.writeContextStrategyError(response, err)
+		return
+	}
+	response.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) writeContextStrategyError(response http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, application.ErrConversationIDRequired):
+		writeAPIError(response, http.StatusBadRequest, "session_id_required", "Session ID is required.")
+	case errors.Is(err, application.ErrInvalidContextStrategy):
+		writeAPIError(response, http.StatusBadRequest, "invalid_strategy", "Strategy must be sliding_window, sticky_facts, or branching.")
+	case errors.Is(err, application.ErrBranchNotCreated):
+		writeAPIError(response, http.StatusConflict, "branch_not_created", "Create a checkpoint before using this branch.")
+	case errors.Is(err, application.ErrCheckpointRequired):
+		writeAPIError(response, http.StatusConflict, "checkpoint_required", "Add messages to the main branch before creating a checkpoint.")
+	case errors.Is(err, application.ErrEmptyAgentMessage):
+		writeAPIError(response, http.StatusBadRequest, "empty_message", "Message is required.")
+	case errors.Is(err, application.ErrAgentMessageTooLong):
+		writeAPIError(response, http.StatusRequestEntityTooLarge, "message_too_long", "Message is too long.")
+	default:
+		h.logger.Error("context strategy failed", "error", err)
+		writeAPIError(response, http.StatusBadGateway, "strategy_error", "The context strategy lab is temporarily unavailable.")
+	}
 }
 
 func (h *Handler) writeAgentMemoryError(response http.ResponseWriter, err error) {

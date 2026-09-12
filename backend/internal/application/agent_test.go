@@ -31,6 +31,7 @@ type conversationStoreStub struct {
 	conversation domain.AgentConversation
 	appended     []domain.AgentMessage
 	summary      domain.ConversationSummary
+	facts        map[string]string
 }
 
 func (s *conversationStoreStub) LoadSummary(_ context.Context, conversationID, agentID string) (domain.ConversationSummary, error) {
@@ -52,11 +53,37 @@ func (s *conversationStoreStub) Load(_ context.Context, conversationID, agentID 
 
 func (s *conversationStoreStub) Append(_ context.Context, _, _ string, messages ...domain.AgentMessage) error {
 	s.appended = append(s.appended, messages...)
+	s.conversation.Messages = append(s.conversation.Messages, messages...)
 	return nil
 }
 
 func (s *conversationStoreStub) Clear(_ context.Context, _, _ string) error {
 	s.conversation.Messages = nil
+	return nil
+}
+
+func (s *conversationStoreStub) Trim(_ context.Context, _, _ string, keep int) error {
+	if keep < len(s.conversation.Messages) {
+		s.conversation.Messages = append([]domain.AgentMessage(nil), s.conversation.Messages[len(s.conversation.Messages)-keep:]...)
+	}
+	return nil
+}
+
+func (s *conversationStoreStub) LoadFacts(_ context.Context, _, _ string) (map[string]string, error) {
+	result := map[string]string{}
+	for key, value := range s.facts {
+		result[key] = value
+	}
+	return result, nil
+}
+
+func (s *conversationStoreStub) SaveFacts(_ context.Context, _, _ string, facts map[string]string, _ time.Time) error {
+	s.facts = facts
+	return nil
+}
+
+func (s *conversationStoreStub) ClearFacts(_ context.Context, _, _ string) error {
+	s.facts = nil
 	return nil
 }
 

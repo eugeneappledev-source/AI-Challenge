@@ -108,6 +108,19 @@ enum AppContainer {
         )
     }
 
+    static func makeContextStrategiesViewModel() -> ContextStrategiesViewModel {
+        let configuration = AppConfiguration.live()
+        let api = AIAgentAPI(
+            baseURL: configuration.baseURL,
+            accessToken: configuration.accessToken,
+            httpClient: URLSessionHTTPClient(session: .shared)
+        )
+        return ContextStrategiesViewModel(
+            useCase: ManageContextStrategiesUseCase(repository: DefaultAIAgentRepository(api: api)),
+            sessionID: stableConversationID(for: "day10")
+        )
+    }
+
     private static func stableConversationID(for day: String) -> String {
         let key = "\(day).conversationID"
         if let saved = UserDefaults.standard.string(forKey: key) { return saved }

@@ -2,6 +2,7 @@ package sqlite
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"testing"
 	"time"
@@ -69,5 +70,43 @@ func TestSummaryIsStoredSeparatelyAndUpdated(t *testing.T) {
 	}
 	if loaded.Content != summary.Content || loaded.CoveredMessages != 10 {
 		t.Fatalf("unexpected summary: %+v", loaded)
+	}
+}
+
+func TestConversationStoreTrimsWindowAndPersistsFacts(t *testing.T) {
+	store, err := Open(filepath.Join(t.TempDir(), "agent.db"))
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer store.Close()
+	ctx := context.Background()
+	messages := make([]domain.AgentMessage, 8)
+	for index := range messages {
+		messages[index] = domain.AgentMessage{ID: fmt.Sprintf("m%d", index), Role: "user", Content: fmt.Sprintf("message-%d", index), CreatedAt: time.Unix(int64(index), 0).UTC()}
+	}
+	if err := store.Append(ctx, "window", "mentor", messages...); err != nil {
+		t.Fatalf("append: %v", err)
+	}
+	if err := store.Trim(ctx, "window", "mentor", 3); err != nil {
+		t.Fatalf("trim: %v", err)
+	}
+	conversation, err := store.Load(ctx, "window", "mentor")
+	if err != nil || len(conversation.Messages) != 3 || conversation.Messages[0].Content != "message-5" {
+		t.Fatalf("unexpected trimmed conversation: %+v err=%v", conversation, err)
+	}
+	facts := map[string]string{"goal": "MVP", "platform": "iOS 17"}
+	if err := store.SaveFacts(ctx, "session", "mentor", facts, time.Now().UTC()); err != nil {
+		t.Fatalf("save facts: %v", err)
+	}
+	loaded, err := store.LoadFacts(ctx, "session", "mentor")
+	if err != nil || loaded["goal"] != "MVP" || loaded["platform"] != "iOS 17" {
+		t.Fatalf("unexpected facts: %+v err=%v", loaded, err)
+	}
+	if err := store.ClearFacts(ctx, "session", "mentor"); err != nil {
+		t.Fatalf("clear facts: %v", err)
+	}
+	loaded, _ = store.LoadFacts(ctx, "session", "mentor")
+	if len(loaded) != 0 {
+		t.Fatalf("facts must be cleared: %+v", loaded)
 	}
 }

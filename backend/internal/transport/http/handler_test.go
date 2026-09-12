@@ -130,6 +130,24 @@ func (s agentServiceStub) CompareContexts(_ context.Context, _, question string)
 	return domain.ContextComparison{Question: question}, s.err
 }
 
+func (s agentServiceStub) RespondWithStrategy(_ context.Context, sessionID string, strategy domain.ContextStrategy, branchID, input string) (domain.ContextStrategyExchange, error) {
+	return domain.ContextStrategyExchange{Strategy: strategy, BranchID: branchID, State: domain.ContextStrategyState{SessionID: sessionID}, Exchange: domain.AgentExchange{UserMessage: domain.AgentMessage{Content: input}}}, s.err
+}
+
+func (s agentServiceStub) StrategyState(_ context.Context, sessionID string, strategy domain.ContextStrategy, branchID string) (domain.ContextStrategyState, error) {
+	return domain.ContextStrategyState{SessionID: sessionID, Strategy: strategy, ActiveBranchID: branchID}, s.err
+}
+
+func (s agentServiceStub) CreateStrategyBranches(_ context.Context, sessionID string) (domain.ContextStrategyState, error) {
+	return domain.ContextStrategyState{SessionID: sessionID, Strategy: domain.ContextStrategyBranching}, s.err
+}
+
+func (s agentServiceStub) CompareContextStrategies(_ context.Context, sessionID string) (domain.ContextStrategyComparison, error) {
+	return domain.ContextStrategyComparison{SessionID: sessionID}, s.err
+}
+
+func (s agentServiceStub) ClearContextStrategies(_ context.Context, _ string) error { return s.err }
+
 func (s *modelBenchmarkServiceRecorder) Run(_ context.Context, prompt string, tier domain.ModelTier) (domain.ModelBenchmarkAttempt, error) {
 	s.prompt = prompt
 	s.tier = tier
@@ -218,6 +236,25 @@ func TestAgentMessageMapsValidationError(t *testing.T) {
 
 	if response.Code != http.StatusBadRequest || !strings.Contains(response.Body.String(), `"code":"empty_message"`) {
 		t.Fatalf("unexpected validation response: %d %s", response.Code, response.Body.String())
+	}
+}
+
+func TestContextStrategyEndpointsExposeSelectorAndComparison(t *testing.T) {
+	handler := newTestHandler(chatServiceStub{}).WithAgentService(agentServiceStub{})
+	messageRequest := httptest.NewRequest(http.MethodPost, "/v1/agent/strategies/message", strings.NewReader(`{"sessionId":"s1","strategy":"sticky_facts","message":"remember"}`))
+	messageRequest.Header.Set("Authorization", "Bearer token")
+	messageResponse := httptest.NewRecorder()
+	handler.Routes().ServeHTTP(messageResponse, messageRequest)
+	if messageResponse.Code != http.StatusOK || !strings.Contains(messageResponse.Body.String(), `"strategy":"sticky_facts"`) {
+		t.Fatalf("unexpected strategy response: %d %s", messageResponse.Code, messageResponse.Body.String())
+	}
+
+	compareRequest := httptest.NewRequest(http.MethodPost, "/v1/agent/strategies/compare", strings.NewReader(`{"sessionId":"s1"}`))
+	compareRequest.Header.Set("Authorization", "Bearer token")
+	compareResponse := httptest.NewRecorder()
+	handler.Routes().ServeHTTP(compareResponse, compareRequest)
+	if compareResponse.Code != http.StatusOK || !strings.Contains(compareResponse.Body.String(), `"sessionId":"s1"`) {
+		t.Fatalf("unexpected comparison response: %d %s", compareResponse.Code, compareResponse.Body.String())
 	}
 }
 

@@ -1,4 +1,4 @@
-struct DefaultAIAgentRepository: AIAgentRepository, AgentMemoryRepository, AgentTokenRepository, ContextCompressionRepository {
+struct DefaultAIAgentRepository: AIAgentRepository, AgentMemoryRepository, AgentTokenRepository, ContextCompressionRepository, ContextStrategyRepository {
     private let api: AIAgentAPI
 
     init(api: AIAgentAPI) { self.api = api }
@@ -18,4 +18,13 @@ struct DefaultAIAgentRepository: AIAgentRepository, AgentMemoryRepository, Agent
     func compareContexts(conversationID: String, question: String) async throws -> ContextComparison {
         try await api.compareContexts(conversationID: conversationID, question: question)
     }
+    func state(sessionID: String, strategy: ContextStrategy, branchID: String?) async throws -> ContextStrategyState {
+        try await api.strategyState(sessionID: sessionID, strategy: strategy, branchID: branchID)
+    }
+    func send(message: String, sessionID: String, strategy: ContextStrategy, branchID: String?) async throws -> ContextStrategyExchange {
+        try await api.sendStrategy(message: message, sessionID: sessionID, strategy: strategy, branchID: branchID)
+    }
+    func createBranches(sessionID: String) async throws -> ContextStrategyState { try await api.createStrategyBranches(sessionID: sessionID) }
+    func compare(sessionID: String) async throws -> ContextStrategyComparison { try await api.compareContextStrategies(sessionID: sessionID) }
+    func clear(sessionID: String) async throws { try await api.clearContextStrategies(sessionID: sessionID) }
 }
