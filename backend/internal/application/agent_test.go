@@ -35,6 +35,7 @@ type conversationStoreStub struct {
 	working      []domain.MemoryItem
 	longTerm     []domain.MemoryItem
 	profiles     []domain.UserProfile
+	taskState    *domain.TaskState
 }
 
 func (s *conversationStoreStub) LoadSummary(_ context.Context, conversationID, agentID string) (domain.ConversationSummary, error) {
@@ -134,6 +135,24 @@ func (s *conversationStoreStub) SaveProfile(_ context.Context, _ string, profile
 		}
 	}
 	s.profiles = append(s.profiles, profile)
+	return nil
+}
+
+func (s *conversationStoreStub) LoadTaskState(_ context.Context, _, _ string) (domain.TaskState, bool, error) {
+	if s.taskState == nil {
+		return domain.TaskState{}, false, nil
+	}
+	return *s.taskState, true, nil
+}
+
+func (s *conversationStoreStub) SaveTaskState(_ context.Context, _ string, state domain.TaskState) error {
+	copy := state
+	s.taskState = &copy
+	return nil
+}
+
+func (s *conversationStoreStub) DeleteTaskState(_ context.Context, _, _ string) error {
+	s.taskState = nil
 	return nil
 }
 

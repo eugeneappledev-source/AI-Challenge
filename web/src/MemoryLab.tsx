@@ -126,6 +126,7 @@ function MemoryLab() {
           <a href="#day-02">День 2</a>
           <a className="selected" href="#day-11">День 11</a>
           <a href="#day-12">День 12</a>
+          <a href="#day-13">День 13</a>
         </div>
         <a className="github-link" href="https://github.com/eugeneappledev-source/AI-Challenge" target="_blank" rel="noreferrer">
           GitHub <span aria-hidden="true">↗</span>

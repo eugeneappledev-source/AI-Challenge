@@ -9,6 +9,9 @@ import type {
   MemoryScope,
   PersonalizedExchange,
   UserProfile,
+  TaskAction,
+  TaskExchange,
+  TaskState,
 } from "./types";
 
 interface APIErrorPayload {
@@ -187,4 +190,44 @@ export async function sendPersonalizedMessage(
     body: JSON.stringify({ ...scope, profileId, message }),
     signal,
   });
+}
+
+export async function createTask(
+  taskId: string,
+  userId: string,
+  profileId: string,
+  goal: string,
+  signal?: AbortSignal,
+): Promise<TaskExchange> {
+  return requestJSON<TaskExchange>("/web-api/agent/tasks", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ taskId, userId, profileId, goal }),
+    signal,
+  });
+}
+
+export async function loadTaskState(taskId: string, signal?: AbortSignal): Promise<TaskState | null> {
+  const query = new URLSearchParams({ taskId });
+  try {
+    return await requestJSON<TaskState>(`/web-api/agent/tasks/state?${query}`, { signal });
+  } catch (error) {
+    if (error instanceof APIError && error.status === 404) return null;
+    throw error;
+  }
+}
+
+export async function actOnTask(taskId: string, action: TaskAction, signal?: AbortSignal): Promise<TaskExchange> {
+  return requestJSON<TaskExchange>("/web-api/agent/tasks/action", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ taskId, action }),
+    signal,
+  });
+}
+
+export async function deleteTask(taskId: string): Promise<void> {
+  const query = new URLSearchParams({ taskId });
+  const response = await fetch(`/web-api/agent/tasks?${query}`, { method: "DELETE" });
+  if (!response.ok) throw await responseError(response);
 }

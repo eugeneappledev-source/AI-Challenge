@@ -9,6 +9,7 @@ import type {
 } from "./types";
 import MemoryLab from "./MemoryLab";
 import ProfileLab from "./ProfileLab";
+import TaskStateLab from "./TaskStateLab";
 
 const suggestions = [
   "Дай простой рецепт греческого салата.",
@@ -17,7 +18,7 @@ const suggestions = [
 ];
 
 function App() {
-  const [activeDay, setActiveDay] = useState<"day-02" | "day-11" | "day-12">(() => readActiveDay());
+  const [activeDay, setActiveDay] = useState<"day-02" | "day-11" | "day-12" | "day-13">(() => readActiveDay());
   const [message, setMessage] = useState("");
   const [comparison, setComparison] = useState<Comparison | null>(null);
   const [selectedMode, setSelectedMode] =
@@ -82,6 +83,9 @@ function App() {
   if (activeDay === "day-12") {
     return <ProfileLab />;
   }
+  if (activeDay === "day-13") {
+    return <TaskStateLab />;
+  }
 
   return (
     <main className="page-shell">
@@ -94,6 +98,7 @@ function App() {
           <a className="selected" href="#day-02">День 2</a>
           <a href="#day-11">День 11</a>
           <a href="#day-12">День 12</a>
+          <a href="#day-13">День 13</a>
         </div>
         <a
           className="github-link"
@@ -375,8 +380,9 @@ function LoadingComparison() {
 
 export default App;
 
-function readActiveDay(): "day-02" | "day-11" | "day-12" {
+function readActiveDay(): "day-02" | "day-11" | "day-12" | "day-13" {
   if (window.location.hash === "#day-02") return "day-02";
   if (window.location.hash === "#day-11") return "day-11";
-  return "day-12";
+  if (window.location.hash === "#day-12") return "day-12";
+  return "day-13";
 }

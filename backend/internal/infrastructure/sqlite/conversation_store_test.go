@@ -73,6 +73,47 @@ func TestSummaryIsStoredSeparatelyAndUpdated(t *testing.T) {
 	}
 }
 
+func TestTaskStateSurvivesStoreReopen(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "agent.db")
+	store, err := Open(path)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	now := time.Date(2026, 9, 17, 12, 0, 0, 0, time.UTC)
+	state := domain.TaskState{
+		ID: "task-1", UserID: "user-1", ProfileID: "engineer", Goal: "Build PulsePlan",
+		Phase: domain.TaskPhaseExecution, Status: domain.TaskStatusPaused,
+		CurrentStep: "Implement", ExpectedAction: "Resume", ResumeExpectedAction: "Validate",
+		Artifacts: []domain.TaskArtifact{{Phase: domain.TaskPhasePlanning, Title: "Plan", Content: "Saved plan", CreatedAt: now}},
+		Revision:  3, CreatedAt: now, UpdatedAt: now,
+	}
+	if err := store.SaveTaskState(context.Background(), "mentor", state); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatalf("close: %v", err)
+	}
+	reopened, err := Open(path)
+	if err != nil {
+		t.Fatalf("reopen: %v", err)
+	}
+	defer reopened.Close()
+	loaded, found, err := reopened.LoadTaskState(context.Background(), "task-1", "mentor")
+	if err != nil || !found {
+		t.Fatalf("load task: found=%v err=%v", found, err)
+	}
+	if loaded.Phase != domain.TaskPhaseExecution || loaded.Status != domain.TaskStatusPaused || loaded.ResumeExpectedAction != "Validate" || loaded.Artifacts[0].Content != "Saved plan" {
+		t.Fatalf("unexpected restored state: %+v", loaded)
+	}
+	if err := reopened.DeleteTaskState(context.Background(), "task-1", "mentor"); err != nil {
+		t.Fatalf("delete task: %v", err)
+	}
+	_, found, _ = reopened.LoadTaskState(context.Background(), "task-1", "mentor")
+	if found {
+		t.Fatal("task state must be deleted")
+	}
+}
+
 func TestConversationStoreTrimsWindowAndPersistsFacts(t *testing.T) {
 	store, err := Open(filepath.Join(t.TempDir(), "agent.db"))
 	if err != nil {

@@ -116,3 +116,47 @@ export interface PersonalizedExchange {
   memory: LayeredMemoryState;
   trace: string[];
 }
+
+export type TaskPhase = "planning" | "execution" | "validation" | "done";
+export type TaskStatus = "active" | "paused";
+export type TaskAction = "advance" | "pause" | "resume";
+
+export interface TaskArtifact {
+  phase: TaskPhase;
+  title: string;
+  content: string;
+  createdAt: string;
+}
+
+export interface TaskTransition {
+  action: string;
+  from?: TaskPhase;
+  to: TaskPhase;
+  summary: string;
+  createdAt: string;
+}
+
+export interface TaskState {
+  id: string;
+  userId: string;
+  profileId: string;
+  goal: string;
+  phase: TaskPhase;
+  status: TaskStatus;
+  currentStep: string;
+  expectedAction: string;
+  artifacts: TaskArtifact[];
+  transitions: TaskTransition[];
+  revision: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TaskExchange {
+  state: TaskState;
+  answer: string;
+  model?: string;
+  finishReason?: string;
+  usage: Usage;
+  trace: string[];
+}

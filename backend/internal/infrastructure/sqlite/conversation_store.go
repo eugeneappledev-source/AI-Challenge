@@ -94,9 +94,54 @@ func (s *ConversationStore) migrate(ctx context.Context) error {
 			updated_at TEXT NOT NULL,
 			PRIMARY KEY (user_id, agent_id, profile_id)
 		);
+		CREATE TABLE IF NOT EXISTS agent_task_states (
+			task_id TEXT NOT NULL,
+			agent_id TEXT NOT NULL,
+			state_json TEXT NOT NULL,
+			updated_at TEXT NOT NULL,
+			PRIMARY KEY (task_id, agent_id)
+		);
 	`)
 	if err != nil {
 		return fmt.Errorf("migrate agent database: %w", err)
+	}
+	return nil
+}
+
+func (s *ConversationStore) LoadTaskState(ctx context.Context, taskID, agentID string) (domain.TaskState, bool, error) {
+	var raw string
+	err := s.db.QueryRowContext(ctx, `SELECT state_json FROM agent_task_states WHERE task_id = ? AND agent_id = ?`, taskID, agentID).Scan(&raw)
+	if err == sql.ErrNoRows {
+		return domain.TaskState{}, false, nil
+	}
+	if err != nil {
+		return domain.TaskState{}, false, fmt.Errorf("load task state: %w", err)
+	}
+	var state domain.TaskState
+	if err := json.Unmarshal([]byte(raw), &state); err != nil {
+		return domain.TaskState{}, false, fmt.Errorf("decode task state: %w", err)
+	}
+	return state, true, nil
+}
+
+func (s *ConversationStore) SaveTaskState(ctx context.Context, agentID string, state domain.TaskState) error {
+	raw, err := json.Marshal(state)
+	if err != nil {
+		return fmt.Errorf("encode task state: %w", err)
+	}
+	_, err = s.db.ExecContext(ctx, `INSERT INTO agent_task_states (task_id, agent_id, state_json, updated_at)
+		VALUES (?, ?, ?, ?) ON CONFLICT(task_id, agent_id) DO UPDATE SET
+		state_json = excluded.state_json, updated_at = excluded.updated_at`,
+		state.ID, agentID, string(raw), state.UpdatedAt.Format(time.RFC3339Nano))
+	if err != nil {
+		return fmt.Errorf("save task state: %w", err)
+	}
+	return nil
+}
+
+func (s *ConversationStore) DeleteTaskState(ctx context.Context, taskID, agentID string) error {
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM agent_task_states WHERE task_id = ? AND agent_id = ?`, taskID, agentID); err != nil {
+		return fmt.Errorf("delete task state: %w", err)
 	}
 	return nil
 }

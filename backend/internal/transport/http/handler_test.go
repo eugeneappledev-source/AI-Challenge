@@ -177,6 +177,20 @@ func (s agentServiceStub) RespondWithProfile(_ context.Context, sessionID, taskI
 	}, s.err
 }
 
+func (s agentServiceStub) CreateTask(_ context.Context, taskID, userID, profileID, goal string) (domain.TaskExchange, error) {
+	return domain.TaskExchange{State: domain.TaskState{ID: taskID, UserID: userID, ProfileID: profileID, Goal: goal, Phase: domain.TaskPhasePlanning}}, s.err
+}
+
+func (s agentServiceStub) TaskState(_ context.Context, taskID string) (domain.TaskState, error) {
+	return domain.TaskState{ID: taskID, Phase: domain.TaskPhaseExecution}, s.err
+}
+
+func (s agentServiceStub) ActOnTask(_ context.Context, taskID string, action domain.TaskAction) (domain.TaskExchange, error) {
+	return domain.TaskExchange{State: domain.TaskState{ID: taskID, Phase: domain.TaskPhaseValidation}, Answer: string(action)}, s.err
+}
+
+func (s agentServiceStub) DeleteTask(_ context.Context, _ string) error { return s.err }
+
 func (s *modelBenchmarkServiceRecorder) Run(_ context.Context, prompt string, tier domain.ModelTier) (domain.ModelBenchmarkAttempt, error) {
 	s.prompt = prompt
 	s.tier = tier
@@ -322,6 +336,33 @@ func TestPersonalizationEndpointsExposeProfilesAndSelectedProfile(t *testing.T) 
 	handler.Routes().ServeHTTP(messageResponse, messageRequest)
 	if messageResponse.Code != http.StatusOK || !strings.Contains(messageResponse.Body.String(), `"id":"engineer"`) || !strings.Contains(messageResponse.Body.String(), `"message":"Предложи архитектуру"`) {
 		t.Fatalf("unexpected personalized response: %d %s", messageResponse.Code, messageResponse.Body.String())
+	}
+}
+
+func TestTaskStateMachineEndpointsExposeStateAndAction(t *testing.T) {
+	handler := newTestHandler(chatServiceStub{}).WithAgentService(agentServiceStub{})
+	createRequest := httptest.NewRequest(http.MethodPost, "/v1/agent/tasks", strings.NewReader(`{"taskId":"t1","userId":"u1","profileId":"engineer","goal":"Подготовить план"}`))
+	createRequest.Header.Set("Authorization", "Bearer token")
+	createResponse := httptest.NewRecorder()
+	handler.Routes().ServeHTTP(createResponse, createRequest)
+	if createResponse.Code != http.StatusCreated || !strings.Contains(createResponse.Body.String(), `"phase":"planning"`) || !strings.Contains(createResponse.Body.String(), `"goal":"Подготовить план"`) {
+		t.Fatalf("unexpected task create response: %d %s", createResponse.Code, createResponse.Body.String())
+	}
+
+	stateRequest := httptest.NewRequest(http.MethodGet, "/v1/agent/tasks/state?taskId=t1", nil)
+	stateRequest.Header.Set("Authorization", "Bearer token")
+	stateResponse := httptest.NewRecorder()
+	handler.Routes().ServeHTTP(stateResponse, stateRequest)
+	if stateResponse.Code != http.StatusOK || !strings.Contains(stateResponse.Body.String(), `"phase":"execution"`) {
+		t.Fatalf("unexpected task state response: %d %s", stateResponse.Code, stateResponse.Body.String())
+	}
+
+	actionRequest := httptest.NewRequest(http.MethodPost, "/v1/agent/tasks/action", strings.NewReader(`{"taskId":"t1","action":"advance"}`))
+	actionRequest.Header.Set("Authorization", "Bearer token")
+	actionResponse := httptest.NewRecorder()
+	handler.Routes().ServeHTTP(actionResponse, actionRequest)
+	if actionResponse.Code != http.StatusOK || !strings.Contains(actionResponse.Body.String(), `"phase":"validation"`) || !strings.Contains(actionResponse.Body.String(), `"answer":"advance"`) {
+		t.Fatalf("unexpected task action response: %d %s", actionResponse.Code, actionResponse.Body.String())
 	}
 }
 

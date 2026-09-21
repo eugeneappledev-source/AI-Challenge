@@ -28,6 +28,7 @@
 |:---:|---|---|:---:|
 | [11](day-11/README.md) | Модель памяти | Short-term, Working, Long-term и Memory Router | ✅ |
 | [12](day-12/README.md) | Персонализация | Редактируемые профили и разные skill pipelines | ✅ |
+| [13](day-13/README.md) | Состояние задачи | FSM, pause/resume и восстановление из SQLite | ✅ |
 
 ## Как читать дневник
 

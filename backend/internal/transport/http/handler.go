@@ -58,6 +58,10 @@ type AgentService interface {
 	Profiles(ctx context.Context, userID string) ([]domain.UserProfile, error)
 	SaveProfile(ctx context.Context, profile domain.UserProfile) (domain.UserProfile, error)
 	RespondWithProfile(ctx context.Context, sessionID, taskID, userID, profileID, input string) (domain.PersonalizedExchange, error)
+	CreateTask(ctx context.Context, taskID, userID, profileID, goal string) (domain.TaskExchange, error)
+	TaskState(ctx context.Context, taskID string) (domain.TaskState, error)
+	ActOnTask(ctx context.Context, taskID string, action domain.TaskAction) (domain.TaskExchange, error)
+	DeleteTask(ctx context.Context, taskID string) error
 }
 
 type Handler struct {
@@ -130,8 +134,95 @@ func (h *Handler) Routes() http.Handler {
 		mux.Handle("GET /v1/agent/profiles", h.requireAccessToken(http.HandlerFunc(h.profiles)))
 		mux.Handle("PUT /v1/agent/profiles", h.requireAccessToken(http.HandlerFunc(h.saveProfile)))
 		mux.Handle("POST /v1/agent/personalized/message", h.requireAccessToken(h.limitRequests(http.HandlerFunc(h.personalizedMessage))))
+		mux.Handle("POST /v1/agent/tasks", h.requireAccessToken(h.limitRequests(http.HandlerFunc(h.createTask))))
+		mux.Handle("GET /v1/agent/tasks/state", h.requireAccessToken(http.HandlerFunc(h.taskState)))
+		mux.Handle("POST /v1/agent/tasks/action", h.requireAccessToken(h.limitRequests(http.HandlerFunc(h.actOnTask))))
+		mux.Handle("DELETE /v1/agent/tasks", h.requireAccessToken(http.HandlerFunc(h.deleteTask)))
 	}
 	return h.logging(h.recoverPanic(mux))
+}
+
+type createTaskRequest struct {
+	TaskID    string `json:"taskId"`
+	UserID    string `json:"userId"`
+	ProfileID string `json:"profileId"`
+	Goal      string `json:"goal"`
+}
+
+func (h *Handler) createTask(response http.ResponseWriter, request *http.Request) {
+	var payload createTaskRequest
+	if err := decodeRequestJSON(response, request, &payload); err != nil {
+		writeAPIError(response, http.StatusBadRequest, "invalid_request", "Request must contain taskId, userId, profileId and goal.")
+		return
+	}
+	exchange, err := h.agentService.CreateTask(request.Context(), payload.TaskID, payload.UserID, payload.ProfileID, payload.Goal)
+	if err != nil {
+		h.writeTaskError(response, err)
+		return
+	}
+	writeJSON(response, http.StatusCreated, exchange)
+}
+
+func (h *Handler) taskState(response http.ResponseWriter, request *http.Request) {
+	state, err := h.agentService.TaskState(request.Context(), request.URL.Query().Get("taskId"))
+	if err != nil {
+		h.writeTaskError(response, err)
+		return
+	}
+	writeJSON(response, http.StatusOK, state)
+}
+
+type taskActionRequest struct {
+	TaskID string            `json:"taskId"`
+	Action domain.TaskAction `json:"action"`
+}
+
+func (h *Handler) actOnTask(response http.ResponseWriter, request *http.Request) {
+	var payload taskActionRequest
+	if err := decodeRequestJSON(response, request, &payload); err != nil {
+		writeAPIError(response, http.StatusBadRequest, "invalid_request", "Request must contain taskId and action.")
+		return
+	}
+	exchange, err := h.agentService.ActOnTask(request.Context(), payload.TaskID, payload.Action)
+	if err != nil {
+		h.writeTaskError(response, err)
+		return
+	}
+	writeJSON(response, http.StatusOK, exchange)
+}
+
+func (h *Handler) deleteTask(response http.ResponseWriter, request *http.Request) {
+	if err := h.agentService.DeleteTask(request.Context(), request.URL.Query().Get("taskId")); err != nil {
+		h.writeTaskError(response, err)
+		return
+	}
+	response.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) writeTaskError(response http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, application.ErrTaskScopeRequired):
+		writeAPIError(response, http.StatusBadRequest, "task_scope_required", "Task and user scope are required.")
+	case errors.Is(err, application.ErrTaskNotFound):
+		writeAPIError(response, http.StatusNotFound, "task_not_found", "Task state was not found.")
+	case errors.Is(err, application.ErrProfileNotFound):
+		writeAPIError(response, http.StatusNotFound, "profile_not_found", "The selected profile does not exist.")
+	case errors.Is(err, application.ErrInvalidTaskAction):
+		writeAPIError(response, http.StatusBadRequest, "invalid_task_action", "Action must be advance, pause, or resume.")
+	case errors.Is(err, application.ErrTaskAlreadyPaused):
+		writeAPIError(response, http.StatusConflict, "task_paused", "Resume the paused task before continuing.")
+	case errors.Is(err, application.ErrTaskNotPaused):
+		writeAPIError(response, http.StatusConflict, "task_not_paused", "The task is already active.")
+	case errors.Is(err, application.ErrTaskDone):
+		writeAPIError(response, http.StatusConflict, "task_done", "The task is already complete.")
+	case errors.Is(err, application.ErrEmptyAgentMessage):
+		writeAPIError(response, http.StatusBadRequest, "empty_goal", "Task goal is required.")
+	case errors.Is(err, application.ErrAgentMessageTooLong):
+		writeAPIError(response, http.StatusRequestEntityTooLarge, "goal_too_long", "Task goal is too long.")
+	default:
+		h.logger.Error("task state machine failed", "error", err)
+		writeAPIError(response, http.StatusBadGateway, "task_error", "The task agent is temporarily unavailable.")
+	}
 }
 
 func (h *Handler) profiles(response http.ResponseWriter, request *http.Request) {
