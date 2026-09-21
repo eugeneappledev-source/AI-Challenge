@@ -8,6 +8,7 @@ import type {
   ResponseMode,
 } from "./types";
 import MemoryLab from "./MemoryLab";
+import ProfileLab from "./ProfileLab";
 
 const suggestions = [
   "Дай простой рецепт греческого салата.",
@@ -16,9 +17,7 @@ const suggestions = [
 ];
 
 function App() {
-	const [activeDay, setActiveDay] = useState<"day-02" | "day-11">(() =>
-		window.location.hash === "#day-02" ? "day-02" : "day-11",
-	);
+  const [activeDay, setActiveDay] = useState<"day-02" | "day-11" | "day-12">(() => readActiveDay());
   const [message, setMessage] = useState("");
   const [comparison, setComparison] = useState<Comparison | null>(null);
   const [selectedMode, setSelectedMode] =
@@ -29,7 +28,7 @@ function App() {
 
   useEffect(() => () => abortController.current?.abort(), []);
   useEffect(() => {
-    const updateDay = () => setActiveDay(window.location.hash === "#day-02" ? "day-02" : "day-11");
+    const updateDay = () => setActiveDay(readActiveDay());
     window.addEventListener("hashchange", updateDay);
     return () => window.removeEventListener("hashchange", updateDay);
   }, []);
@@ -80,6 +79,9 @@ function App() {
   if (activeDay === "day-11") {
     return <MemoryLab />;
   }
+  if (activeDay === "day-12") {
+    return <ProfileLab />;
+  }
 
   return (
     <main className="page-shell">
@@ -91,6 +93,7 @@ function App() {
         <div className="day-switcher" aria-label="Выбор задания">
           <a className="selected" href="#day-02">День 2</a>
           <a href="#day-11">День 11</a>
+          <a href="#day-12">День 12</a>
         </div>
         <a
           className="github-link"
@@ -371,3 +374,9 @@ function LoadingComparison() {
 }
 
 export default App;
+
+function readActiveDay(): "day-02" | "day-11" | "day-12" {
+  if (window.location.hash === "#day-02") return "day-02";
+  if (window.location.hash === "#day-11") return "day-11";
+  return "day-12";
+}

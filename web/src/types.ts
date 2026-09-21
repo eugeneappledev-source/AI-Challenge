@@ -79,3 +79,40 @@ export interface MemoryScope {
   taskId: string;
   userId: string;
 }
+
+export interface UserProfile {
+  id: string;
+  userId: string;
+  name: string;
+  address: string;
+  style: string;
+  responseFormat: string;
+  constraints: string[];
+  pipelineId: "engineering_review" | "product_discovery";
+  updatedAt: string;
+}
+
+export interface ProfileSkill {
+  id: string;
+  name: string;
+  description: string;
+}
+
+export interface ProfileSkillRun {
+  skill: ProfileSkill;
+  output: string;
+  usage: Usage;
+}
+
+export interface PersonalizedExchange {
+  profile: UserProfile;
+  skills: ProfileSkillRun[];
+  message: string;
+  answer: string;
+  model: string;
+  finishReason: string;
+  usage: Usage;
+  route: MemoryRoute;
+  memory: LayeredMemoryState;
+  trace: string[];
+}

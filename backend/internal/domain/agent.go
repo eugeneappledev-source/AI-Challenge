@@ -87,6 +87,43 @@ type LayeredMemoryExchange struct {
 	Trace          []string           `json:"trace"`
 }
 
+type UserProfile struct {
+	ID             string    `json:"id"`
+	UserID         string    `json:"userId"`
+	Name           string    `json:"name"`
+	Address        string    `json:"address"`
+	Style          string    `json:"style"`
+	ResponseFormat string    `json:"responseFormat"`
+	Constraints    []string  `json:"constraints"`
+	PipelineID     string    `json:"pipelineId"`
+	UpdatedAt      time.Time `json:"updatedAt"`
+}
+
+type ProfileSkill struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
+type ProfileSkillRun struct {
+	Skill  ProfileSkill `json:"skill"`
+	Output string       `json:"output"`
+	Usage  Usage        `json:"usage"`
+}
+
+type PersonalizedExchange struct {
+	Profile      UserProfile        `json:"profile"`
+	Skills       []ProfileSkillRun  `json:"skills"`
+	Message      string             `json:"message"`
+	Answer       string             `json:"answer"`
+	Model        string             `json:"model"`
+	FinishReason string             `json:"finishReason"`
+	Usage        Usage              `json:"usage"`
+	Route        MemoryRoute        `json:"route"`
+	Memory       LayeredMemoryState `json:"memory"`
+	Trace        []string           `json:"trace"`
+}
+
 type AgentTokenMetrics struct {
 	ConversationID                string          `json:"conversationId"`
 	Model                         string          `json:"model"`

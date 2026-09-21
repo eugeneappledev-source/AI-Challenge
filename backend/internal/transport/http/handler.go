@@ -55,6 +55,9 @@ type AgentService interface {
 	RespondWithLayeredMemory(ctx context.Context, sessionID, taskID, userID string, layer domain.MemoryLayer, input string) (domain.LayeredMemoryExchange, error)
 	LayeredMemoryState(ctx context.Context, sessionID, taskID, userID string) (domain.LayeredMemoryState, error)
 	ClearLayeredMemory(ctx context.Context, sessionID, taskID, userID string) error
+	Profiles(ctx context.Context, userID string) ([]domain.UserProfile, error)
+	SaveProfile(ctx context.Context, profile domain.UserProfile) (domain.UserProfile, error)
+	RespondWithProfile(ctx context.Context, sessionID, taskID, userID, profileID, input string) (domain.PersonalizedExchange, error)
 }
 
 type Handler struct {
@@ -124,8 +127,74 @@ func (h *Handler) Routes() http.Handler {
 		mux.Handle("POST /v1/agent/memory/message", h.requireAccessToken(h.limitRequests(http.HandlerFunc(h.layeredMemoryMessage))))
 		mux.Handle("GET /v1/agent/memory/state", h.requireAccessToken(http.HandlerFunc(h.layeredMemoryState)))
 		mux.Handle("DELETE /v1/agent/memory", h.requireAccessToken(http.HandlerFunc(h.clearLayeredMemory)))
+		mux.Handle("GET /v1/agent/profiles", h.requireAccessToken(http.HandlerFunc(h.profiles)))
+		mux.Handle("PUT /v1/agent/profiles", h.requireAccessToken(http.HandlerFunc(h.saveProfile)))
+		mux.Handle("POST /v1/agent/personalized/message", h.requireAccessToken(h.limitRequests(http.HandlerFunc(h.personalizedMessage))))
 	}
 	return h.logging(h.recoverPanic(mux))
+}
+
+func (h *Handler) profiles(response http.ResponseWriter, request *http.Request) {
+	profiles, err := h.agentService.Profiles(request.Context(), request.URL.Query().Get("userId"))
+	if err != nil {
+		h.writePersonalizationError(response, err)
+		return
+	}
+	writeJSON(response, http.StatusOK, profiles)
+}
+
+func (h *Handler) saveProfile(response http.ResponseWriter, request *http.Request) {
+	var payload domain.UserProfile
+	if err := decodeRequestJSON(response, request, &payload); err != nil {
+		writeAPIError(response, http.StatusBadRequest, "invalid_request", "Request must contain a valid user profile.")
+		return
+	}
+	profile, err := h.agentService.SaveProfile(request.Context(), payload)
+	if err != nil {
+		h.writePersonalizationError(response, err)
+		return
+	}
+	writeJSON(response, http.StatusOK, profile)
+}
+
+type personalizedMessageRequest struct {
+	SessionID string `json:"sessionId"`
+	TaskID    string `json:"taskId"`
+	UserID    string `json:"userId"`
+	ProfileID string `json:"profileId"`
+	Message   string `json:"message"`
+}
+
+func (h *Handler) personalizedMessage(response http.ResponseWriter, request *http.Request) {
+	var payload personalizedMessageRequest
+	if err := decodeRequestJSON(response, request, &payload); err != nil {
+		writeAPIError(response, http.StatusBadRequest, "invalid_request", "Request must contain scope, profileId and message.")
+		return
+	}
+	exchange, err := h.agentService.RespondWithProfile(request.Context(), payload.SessionID, payload.TaskID, payload.UserID, payload.ProfileID, payload.Message)
+	if err != nil {
+		h.writePersonalizationError(response, err)
+		return
+	}
+	writeJSON(response, http.StatusOK, exchange)
+}
+
+func (h *Handler) writePersonalizationError(response http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, application.ErrMemoryScopeRequired):
+		writeAPIError(response, http.StatusBadRequest, "user_scope_required", "User, task and session IDs are required.")
+	case errors.Is(err, application.ErrProfileNotFound):
+		writeAPIError(response, http.StatusNotFound, "profile_not_found", "The selected profile does not exist.")
+	case errors.Is(err, application.ErrInvalidProfile):
+		writeAPIError(response, http.StatusBadRequest, "invalid_profile", "Profile fields or pipeline are invalid.")
+	case errors.Is(err, application.ErrEmptyAgentMessage):
+		writeAPIError(response, http.StatusBadRequest, "empty_message", "Message is required.")
+	case errors.Is(err, application.ErrAgentMessageTooLong):
+		writeAPIError(response, http.StatusRequestEntityTooLarge, "message_too_long", "Message is too long.")
+	default:
+		h.logger.Error("personalized agent failed", "error", err)
+		writeAPIError(response, http.StatusBadGateway, "personalization_error", "The personalized agent is temporarily unavailable.")
+	}
 }
 
 type layeredMemoryMessageRequest struct {

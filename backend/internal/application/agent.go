@@ -35,6 +35,8 @@ type ConversationStore interface {
 	LoadLongTermMemory(ctx context.Context, userID, agentID string) ([]domain.MemoryItem, error)
 	SaveLongTermMemory(ctx context.Context, userID, agentID string, item domain.MemoryItem) error
 	ClearLongTermMemory(ctx context.Context, userID, agentID string) error
+	LoadProfiles(ctx context.Context, userID, agentID string) ([]domain.UserProfile, error)
+	SaveProfile(ctx context.Context, agentID string, profile domain.UserProfile) error
 }
 
 type Agent struct {

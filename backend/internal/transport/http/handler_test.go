@@ -162,6 +162,21 @@ func (s agentServiceStub) LayeredMemoryState(_ context.Context, sessionID, taskI
 
 func (s agentServiceStub) ClearLayeredMemory(_ context.Context, _, _, _ string) error { return s.err }
 
+func (s agentServiceStub) Profiles(_ context.Context, userID string) ([]domain.UserProfile, error) {
+	return []domain.UserProfile{{ID: "engineer", UserID: userID, Name: "Senior iOS Engineer"}}, s.err
+}
+
+func (s agentServiceStub) SaveProfile(_ context.Context, profile domain.UserProfile) (domain.UserProfile, error) {
+	return profile, s.err
+}
+
+func (s agentServiceStub) RespondWithProfile(_ context.Context, sessionID, taskID, userID, profileID, input string) (domain.PersonalizedExchange, error) {
+	return domain.PersonalizedExchange{
+		Profile: domain.UserProfile{ID: profileID, UserID: userID}, Message: input,
+		Memory: domain.LayeredMemoryState{SessionID: sessionID, TaskID: taskID, UserID: userID},
+	}, s.err
+}
+
 func (s *modelBenchmarkServiceRecorder) Run(_ context.Context, prompt string, tier domain.ModelTier) (domain.ModelBenchmarkAttempt, error) {
 	s.prompt = prompt
 	s.tier = tier
@@ -288,6 +303,25 @@ func TestLayeredMemoryEndpointsExposeRoutingAndState(t *testing.T) {
 	handler.Routes().ServeHTTP(stateResponse, stateRequest)
 	if stateResponse.Code != http.StatusOK || !strings.Contains(stateResponse.Body.String(), `"taskId":"t1"`) {
 		t.Fatalf("unexpected layered memory state: %d %s", stateResponse.Code, stateResponse.Body.String())
+	}
+}
+
+func TestPersonalizationEndpointsExposeProfilesAndSelectedProfile(t *testing.T) {
+	handler := newTestHandler(chatServiceStub{}).WithAgentService(agentServiceStub{})
+	profilesRequest := httptest.NewRequest(http.MethodGet, "/v1/agent/profiles?userId=u1", nil)
+	profilesRequest.Header.Set("Authorization", "Bearer token")
+	profilesResponse := httptest.NewRecorder()
+	handler.Routes().ServeHTTP(profilesResponse, profilesRequest)
+	if profilesResponse.Code != http.StatusOK || !strings.Contains(profilesResponse.Body.String(), `"id":"engineer"`) {
+		t.Fatalf("unexpected profiles response: %d %s", profilesResponse.Code, profilesResponse.Body.String())
+	}
+
+	messageRequest := httptest.NewRequest(http.MethodPost, "/v1/agent/personalized/message", strings.NewReader(`{"sessionId":"s1","taskId":"t1","userId":"u1","profileId":"engineer","message":"Предложи архитектуру"}`))
+	messageRequest.Header.Set("Authorization", "Bearer token")
+	messageResponse := httptest.NewRecorder()
+	handler.Routes().ServeHTTP(messageResponse, messageRequest)
+	if messageResponse.Code != http.StatusOK || !strings.Contains(messageResponse.Body.String(), `"id":"engineer"`) || !strings.Contains(messageResponse.Body.String(), `"message":"Предложи архитектуру"`) {
+		t.Fatalf("unexpected personalized response: %d %s", messageResponse.Code, messageResponse.Body.String())
 	}
 }
 

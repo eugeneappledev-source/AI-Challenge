@@ -81,9 +81,72 @@ func (s *ConversationStore) migrate(ctx context.Context) error {
 			updated_at TEXT NOT NULL,
 			PRIMARY KEY (user_id, agent_id, memory_key)
 		);
+		CREATE TABLE IF NOT EXISTS agent_profiles (
+			user_id TEXT NOT NULL,
+			agent_id TEXT NOT NULL,
+			profile_id TEXT NOT NULL,
+			name TEXT NOT NULL,
+			address TEXT NOT NULL,
+			style TEXT NOT NULL,
+			response_format TEXT NOT NULL,
+			constraints_json TEXT NOT NULL,
+			pipeline_id TEXT NOT NULL,
+			updated_at TEXT NOT NULL,
+			PRIMARY KEY (user_id, agent_id, profile_id)
+		);
 	`)
 	if err != nil {
 		return fmt.Errorf("migrate agent database: %w", err)
+	}
+	return nil
+}
+
+func (s *ConversationStore) LoadProfiles(ctx context.Context, userID, agentID string) ([]domain.UserProfile, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT profile_id, name, address, style, response_format, constraints_json, pipeline_id, updated_at
+		FROM agent_profiles WHERE user_id = ? AND agent_id = ? ORDER BY profile_id`, userID, agentID)
+	if err != nil {
+		return nil, fmt.Errorf("load agent profiles: %w", err)
+	}
+	defer rows.Close()
+	profiles := []domain.UserProfile{}
+	for rows.Next() {
+		var profile domain.UserProfile
+		var constraintsRaw, updatedAt string
+		if err := rows.Scan(&profile.ID, &profile.Name, &profile.Address, &profile.Style, &profile.ResponseFormat, &constraintsRaw, &profile.PipelineID, &updatedAt); err != nil {
+			return nil, fmt.Errorf("scan agent profile: %w", err)
+		}
+		profile.UserID = userID
+		if err := json.Unmarshal([]byte(constraintsRaw), &profile.Constraints); err != nil {
+			return nil, fmt.Errorf("decode profile constraints: %w", err)
+		}
+		profile.UpdatedAt, err = time.Parse(time.RFC3339Nano, updatedAt)
+		if err != nil {
+			return nil, fmt.Errorf("parse profile time: %w", err)
+		}
+		profiles = append(profiles, profile)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate agent profiles: %w", err)
+	}
+	return profiles, nil
+}
+
+func (s *ConversationStore) SaveProfile(ctx context.Context, agentID string, profile domain.UserProfile) error {
+	constraintsRaw, err := json.Marshal(profile.Constraints)
+	if err != nil {
+		return fmt.Errorf("encode profile constraints: %w", err)
+	}
+	_, err = s.db.ExecContext(ctx, `INSERT INTO agent_profiles
+		(user_id, agent_id, profile_id, name, address, style, response_format, constraints_json, pipeline_id, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(user_id, agent_id, profile_id) DO UPDATE SET
+		name = excluded.name, address = excluded.address, style = excluded.style,
+		response_format = excluded.response_format, constraints_json = excluded.constraints_json,
+		pipeline_id = excluded.pipeline_id, updated_at = excluded.updated_at`,
+		profile.UserID, agentID, profile.ID, profile.Name, profile.Address, profile.Style, profile.ResponseFormat,
+		string(constraintsRaw), profile.PipelineID, profile.UpdatedAt.Format(time.RFC3339Nano))
+	if err != nil {
+		return fmt.Errorf("save agent profile: %w", err)
 	}
 	return nil
 }

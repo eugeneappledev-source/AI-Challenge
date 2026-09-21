@@ -7,6 +7,8 @@ import type {
   LayeredMemoryState,
   MemoryLayer,
   MemoryScope,
+  PersonalizedExchange,
+  UserProfile,
 } from "./types";
 
 interface APIErrorPayload {
@@ -158,4 +160,31 @@ async function responseError(response: Response): Promise<APIError> {
         ? "Агент или модель временно недоступны. Попробуйте ещё раз."
         : payload?.error?.message ?? "Не удалось выполнить запрос.";
   return new APIError(message, response.status);
+}
+
+export async function loadProfiles(userId: string, signal?: AbortSignal): Promise<UserProfile[]> {
+  const query = new URLSearchParams({ userId });
+  return requestJSON<UserProfile[]>(`/web-api/agent/profiles?${query}`, { signal });
+}
+
+export async function saveProfile(profile: UserProfile): Promise<UserProfile> {
+  return requestJSON<UserProfile>("/web-api/agent/profiles", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(profile),
+  });
+}
+
+export async function sendPersonalizedMessage(
+  scope: MemoryScope,
+  profileId: string,
+  message: string,
+  signal?: AbortSignal,
+): Promise<PersonalizedExchange> {
+  return requestJSON<PersonalizedExchange>("/web-api/agent/personalized/message", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...scope, profileId, message }),
+    signal,
+  });
 }

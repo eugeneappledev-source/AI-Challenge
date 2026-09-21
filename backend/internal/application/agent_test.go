@@ -34,6 +34,7 @@ type conversationStoreStub struct {
 	facts        map[string]string
 	working      []domain.MemoryItem
 	longTerm     []domain.MemoryItem
+	profiles     []domain.UserProfile
 }
 
 func (s *conversationStoreStub) LoadSummary(_ context.Context, conversationID, agentID string) (domain.ConversationSummary, error) {
@@ -114,6 +115,25 @@ func (s *conversationStoreStub) SaveLongTermMemory(_ context.Context, _, _ strin
 
 func (s *conversationStoreStub) ClearLongTermMemory(_ context.Context, _, _ string) error {
 	s.longTerm = nil
+	return nil
+}
+
+func (s *conversationStoreStub) LoadProfiles(_ context.Context, userID, _ string) ([]domain.UserProfile, error) {
+	profiles := append([]domain.UserProfile(nil), s.profiles...)
+	for index := range profiles {
+		profiles[index].UserID = userID
+	}
+	return profiles, nil
+}
+
+func (s *conversationStoreStub) SaveProfile(_ context.Context, _ string, profile domain.UserProfile) error {
+	for index := range s.profiles {
+		if s.profiles[index].ID == profile.ID && s.profiles[index].UserID == profile.UserID {
+			s.profiles[index] = profile
+			return nil
+		}
+	}
+	s.profiles = append(s.profiles, profile)
 	return nil
 }
 
@@ -320,5 +340,57 @@ func TestLayeredMemoryRoutesTaskFactAndBuildsThreeContextLayers(t *testing.T) {
 	}
 	if len(exchange.State.ShortTerm) != 2 || exchange.Answer == "" {
 		t.Fatalf("expected persisted short-term exchange, got %+v", exchange)
+	}
+}
+
+func TestPersonalizedAgentAppliesProfilePipelineAndMemoryToEveryRequest(t *testing.T) {
+	profile := domain.UserProfile{
+		ID: "engineer", UserID: "u1", Name: "Senior iOS Engineer", Address: "Женя",
+		Style: "Технический и лаконичный", ResponseFormat: "Решение → Риски", PipelineID: "engineering_review",
+		Constraints: []string{"Только iOS 17+"},
+	}
+	store := &conversationStoreStub{
+		profiles: []domain.UserProfile{profile},
+		working:  []domain.MemoryItem{{Key: "offline", Value: "offline-first"}},
+		longTerm: []domain.MemoryItem{{Key: "role", Value: "iOS-разработчик"}},
+	}
+	client := &agentModelSequence{replies: []domain.ModelResponse{
+		{Content: `{"layer":"short_term","key":"current_intent","value":"Выбрать архитектуру","reason":"Текущий вопрос"}`},
+		{Content: "Требования проверены", Usage: domain.Usage{TotalTokens: 10}},
+		{Content: "Архитектура проверена", Usage: domain.Usage{TotalTokens: 20}},
+		{Content: "## Решение\nИспользуй локальный repository.", Model: "deepseek-flash", FinishReason: "stop", Usage: domain.Usage{TotalTokens: 30}},
+	}}
+	agent := NewAgent(domain.AgentProfile{ID: "mentor", Model: "deepseek-flash", Instructions: "Помогай", MaxOutputTokens: 1000}, client, 4000).WithMemory(store)
+
+	exchange, err := agent.RespondWithProfile(context.Background(), "s1", "t1", "u1", "engineer", "Какую архитектуру выбрать?")
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(exchange.Skills) != 2 || exchange.Usage.TotalTokens != 60 {
+		t.Fatalf("expected two real skill runs and aggregated usage, got %+v", exchange)
+	}
+	if len(client.requests) != 4 || !strings.Contains(client.requests[3].Messages[1].Content, "Женя") || !strings.Contains(client.requests[3].Messages[2].Content, "iOS-разработчик") || !strings.Contains(client.requests[3].Messages[3].Content, "offline-first") {
+		t.Fatalf("profile and both memory layers must be attached to final request: %+v", client.requests)
+	}
+	if !strings.Contains(client.requests[3].Messages[4].Content, "Требования проверены") || len(exchange.Memory.ShortTerm) != 2 {
+		t.Fatalf("pipeline artifacts and persisted exchange are required: %+v", exchange)
+	}
+}
+
+func TestProfilesAreSeededSeparatelyFromMemory(t *testing.T) {
+	store := &conversationStoreStub{}
+	agent := NewAgent(domain.AgentProfile{ID: "mentor"}, &agentModelRecorder{}, 4000).WithMemory(store)
+
+	profiles, err := agent.Profiles(context.Background(), "u1")
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(profiles) != 2 || profiles[0].PipelineID != "engineering_review" || profiles[1].PipelineID != "product_discovery" {
+		t.Fatalf("expected two independently configurable profiles, got %+v", profiles)
+	}
+	if len(store.longTerm) != 0 || len(store.working) != 0 {
+		t.Fatalf("profile seeding must not write memory: working=%+v long=%+v", store.working, store.longTerm)
 	}
 }
