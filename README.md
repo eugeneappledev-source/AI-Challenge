@@ -153,4 +153,4 @@ AI-Challenge/
 - [`day-12`](https://github.com/eugeneappledev-source/AI-Challenge/tree/day-12) — персонализированные профили и разные pipeline навыков поверх памяти.
 - [`day-13`](https://github.com/eugeneappledev-source/AI-Challenge/tree/day-13) — формальное состояние задачи, pause/resume и восстановление из SQLite.
 - [`day-14`](https://github.com/eugeneappledev-source/AI-Challenge/tree/day-14) — отдельный реестр ограничений, Hybrid Guard и объяснимый отказ.
-- `day-15` — явный граф состояний, запрет недопустимых переходов и контролируемый rollback; тег будет создан после проверки production-деплоя.
+- [`day-15`](https://github.com/eugeneappledev-source/AI-Challenge/tree/day-15) — явный граф состояний, запрет недопустимых переходов и контролируемый rollback.
