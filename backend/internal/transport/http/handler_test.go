@@ -191,6 +191,14 @@ func (s agentServiceStub) ActOnTask(_ context.Context, taskID string, action dom
 
 func (s agentServiceStub) DeleteTask(_ context.Context, _ string) error { return s.err }
 
+func (s agentServiceStub) Invariants(_ context.Context, taskID string) ([]domain.Invariant, error) {
+	return []domain.Invariant{{ID: "stack", TaskID: taskID, Title: "Stack"}}, s.err
+}
+
+func (s agentServiceStub) RespondWithInvariants(_ context.Context, taskID, userID, profileID, input string) (domain.InvariantExchange, error) {
+	return domain.InvariantExchange{Request: input, Verdict: domain.InvariantVerdictAllowed, Invariants: []domain.Invariant{{ID: "stack", TaskID: taskID}}}, s.err
+}
+
 func (s *modelBenchmarkServiceRecorder) Run(_ context.Context, prompt string, tier domain.ModelTier) (domain.ModelBenchmarkAttempt, error) {
 	s.prompt = prompt
 	s.tier = tier
@@ -363,6 +371,25 @@ func TestTaskStateMachineEndpointsExposeStateAndAction(t *testing.T) {
 	handler.Routes().ServeHTTP(actionResponse, actionRequest)
 	if actionResponse.Code != http.StatusOK || !strings.Contains(actionResponse.Body.String(), `"phase":"validation"`) || !strings.Contains(actionResponse.Body.String(), `"answer":"advance"`) {
 		t.Fatalf("unexpected task action response: %d %s", actionResponse.Code, actionResponse.Body.String())
+	}
+}
+
+func TestInvariantEndpointsExposeRegistryAndVerdict(t *testing.T) {
+	handler := newTestHandler(chatServiceStub{}).WithAgentService(agentServiceStub{})
+	listRequest := httptest.NewRequest(http.MethodGet, "/v1/agent/invariants?taskId=t1", nil)
+	listRequest.Header.Set("Authorization", "Bearer token")
+	listResponse := httptest.NewRecorder()
+	handler.Routes().ServeHTTP(listResponse, listRequest)
+	if listResponse.Code != http.StatusOK || !strings.Contains(listResponse.Body.String(), `"id":"stack"`) {
+		t.Fatalf("unexpected invariants response: %d %s", listResponse.Code, listResponse.Body.String())
+	}
+
+	checkRequest := httptest.NewRequest(http.MethodPost, "/v1/agent/invariants/check", strings.NewReader(`{"taskId":"t1","userId":"u1","profileId":"engineer","request":"Предложи решение"}`))
+	checkRequest.Header.Set("Authorization", "Bearer token")
+	checkResponse := httptest.NewRecorder()
+	handler.Routes().ServeHTTP(checkResponse, checkRequest)
+	if checkResponse.Code != http.StatusOK || !strings.Contains(checkResponse.Body.String(), `"verdict":"allowed"`) || !strings.Contains(checkResponse.Body.String(), `"request":"Предложи решение"`) {
+		t.Fatalf("unexpected invariant check response: %d %s", checkResponse.Code, checkResponse.Body.String())
 	}
 }
 

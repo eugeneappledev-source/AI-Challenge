@@ -36,6 +36,7 @@ type conversationStoreStub struct {
 	longTerm     []domain.MemoryItem
 	profiles     []domain.UserProfile
 	taskState    *domain.TaskState
+	invariants   []domain.Invariant
 }
 
 func (s *conversationStoreStub) LoadSummary(_ context.Context, conversationID, agentID string) (domain.ConversationSummary, error) {
@@ -153,6 +154,25 @@ func (s *conversationStoreStub) SaveTaskState(_ context.Context, _ string, state
 
 func (s *conversationStoreStub) DeleteTaskState(_ context.Context, _, _ string) error {
 	s.taskState = nil
+	return nil
+}
+
+func (s *conversationStoreStub) LoadInvariants(_ context.Context, taskID, _ string) ([]domain.Invariant, error) {
+	result := append([]domain.Invariant(nil), s.invariants...)
+	for index := range result {
+		result[index].TaskID = taskID
+	}
+	return result, nil
+}
+
+func (s *conversationStoreStub) SaveInvariant(_ context.Context, _ string, invariant domain.Invariant) error {
+	for index := range s.invariants {
+		if s.invariants[index].ID == invariant.ID && s.invariants[index].TaskID == invariant.TaskID {
+			s.invariants[index] = invariant
+			return nil
+		}
+	}
+	s.invariants = append(s.invariants, invariant)
 	return nil
 }
 

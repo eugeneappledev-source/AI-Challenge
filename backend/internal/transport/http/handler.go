@@ -62,6 +62,8 @@ type AgentService interface {
 	TaskState(ctx context.Context, taskID string) (domain.TaskState, error)
 	ActOnTask(ctx context.Context, taskID string, action domain.TaskAction) (domain.TaskExchange, error)
 	DeleteTask(ctx context.Context, taskID string) error
+	Invariants(ctx context.Context, taskID string) ([]domain.Invariant, error)
+	RespondWithInvariants(ctx context.Context, taskID, userID, profileID, input string) (domain.InvariantExchange, error)
 }
 
 type Handler struct {
@@ -138,8 +140,56 @@ func (h *Handler) Routes() http.Handler {
 		mux.Handle("GET /v1/agent/tasks/state", h.requireAccessToken(http.HandlerFunc(h.taskState)))
 		mux.Handle("POST /v1/agent/tasks/action", h.requireAccessToken(h.limitRequests(http.HandlerFunc(h.actOnTask))))
 		mux.Handle("DELETE /v1/agent/tasks", h.requireAccessToken(http.HandlerFunc(h.deleteTask)))
+		mux.Handle("GET /v1/agent/invariants", h.requireAccessToken(http.HandlerFunc(h.invariants)))
+		mux.Handle("POST /v1/agent/invariants/check", h.requireAccessToken(h.limitRequests(http.HandlerFunc(h.checkInvariants))))
 	}
 	return h.logging(h.recoverPanic(mux))
+}
+
+func (h *Handler) invariants(response http.ResponseWriter, request *http.Request) {
+	invariants, err := h.agentService.Invariants(request.Context(), request.URL.Query().Get("taskId"))
+	if err != nil {
+		h.writeInvariantError(response, err)
+		return
+	}
+	writeJSON(response, http.StatusOK, invariants)
+}
+
+type invariantCheckRequest struct {
+	TaskID    string `json:"taskId"`
+	UserID    string `json:"userId"`
+	ProfileID string `json:"profileId"`
+	Request   string `json:"request"`
+}
+
+func (h *Handler) checkInvariants(response http.ResponseWriter, request *http.Request) {
+	var payload invariantCheckRequest
+	if err := decodeRequestJSON(response, request, &payload); err != nil {
+		writeAPIError(response, http.StatusBadRequest, "invalid_request", "Request must contain taskId, userId, profileId and request.")
+		return
+	}
+	exchange, err := h.agentService.RespondWithInvariants(request.Context(), payload.TaskID, payload.UserID, payload.ProfileID, payload.Request)
+	if err != nil {
+		h.writeInvariantError(response, err)
+		return
+	}
+	writeJSON(response, http.StatusOK, exchange)
+}
+
+func (h *Handler) writeInvariantError(response http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, application.ErrInvariantScopeRequired):
+		writeAPIError(response, http.StatusBadRequest, "invariant_scope_required", "Task, user and profile scope are required.")
+	case errors.Is(err, application.ErrProfileNotFound):
+		writeAPIError(response, http.StatusNotFound, "profile_not_found", "The selected profile does not exist.")
+	case errors.Is(err, application.ErrEmptyAgentMessage):
+		writeAPIError(response, http.StatusBadRequest, "empty_request", "Request is required.")
+	case errors.Is(err, application.ErrAgentMessageTooLong):
+		writeAPIError(response, http.StatusRequestEntityTooLarge, "request_too_long", "Request is too long.")
+	default:
+		h.logger.Error("invariant guard failed", "error", err)
+		writeAPIError(response, http.StatusBadGateway, "invariant_guard_error", "Invariant Guard is temporarily unavailable.")
+	}
 }
 
 type createTaskRequest struct {

@@ -12,6 +12,8 @@ import type {
   TaskAction,
   TaskExchange,
   TaskState,
+  Invariant,
+  InvariantExchange,
 } from "./types";
 
 interface APIErrorPayload {
@@ -230,4 +232,24 @@ export async function deleteTask(taskId: string): Promise<void> {
   const query = new URLSearchParams({ taskId });
   const response = await fetch(`/web-api/agent/tasks?${query}`, { method: "DELETE" });
   if (!response.ok) throw await responseError(response);
+}
+
+export async function loadInvariants(taskId: string, signal?: AbortSignal): Promise<Invariant[]> {
+  const query = new URLSearchParams({ taskId });
+  return requestJSON<Invariant[]>(`/web-api/agent/invariants?${query}`, { signal });
+}
+
+export async function checkInvariants(
+  taskId: string,
+  userId: string,
+  profileId: string,
+  request: string,
+  signal?: AbortSignal,
+): Promise<InvariantExchange> {
+  return requestJSON<InvariantExchange>("/web-api/agent/invariants/check", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ taskId, userId, profileId, request }),
+    signal,
+  });
 }

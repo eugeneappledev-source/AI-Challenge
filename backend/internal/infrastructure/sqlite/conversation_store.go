@@ -101,9 +101,72 @@ func (s *ConversationStore) migrate(ctx context.Context) error {
 			updated_at TEXT NOT NULL,
 			PRIMARY KEY (task_id, agent_id)
 		);
+		CREATE TABLE IF NOT EXISTS agent_invariants (
+			task_id TEXT NOT NULL,
+			agent_id TEXT NOT NULL,
+			invariant_id TEXT NOT NULL,
+			category TEXT NOT NULL,
+			title TEXT NOT NULL,
+			rule_text TEXT NOT NULL,
+			rationale TEXT NOT NULL,
+			protection TEXT NOT NULL,
+			forbidden_terms_json TEXT NOT NULL,
+			created_at TEXT NOT NULL,
+			PRIMARY KEY (task_id, agent_id, invariant_id)
+		);
 	`)
 	if err != nil {
 		return fmt.Errorf("migrate agent database: %w", err)
+	}
+	return nil
+}
+
+func (s *ConversationStore) LoadInvariants(ctx context.Context, taskID, agentID string) ([]domain.Invariant, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT invariant_id, category, title, rule_text, rationale, protection, forbidden_terms_json, created_at
+		FROM agent_invariants WHERE task_id = ? AND agent_id = ? ORDER BY created_at, rowid`, taskID, agentID)
+	if err != nil {
+		return nil, fmt.Errorf("load invariants: %w", err)
+	}
+	defer rows.Close()
+	invariants := []domain.Invariant{}
+	for rows.Next() {
+		var invariant domain.Invariant
+		var forbiddenRaw, createdAt string
+		if err := rows.Scan(&invariant.ID, &invariant.Category, &invariant.Title, &invariant.Rule, &invariant.Rationale, &invariant.Protection, &forbiddenRaw, &createdAt); err != nil {
+			return nil, fmt.Errorf("scan invariant: %w", err)
+		}
+		invariant.TaskID = taskID
+		if err := json.Unmarshal([]byte(forbiddenRaw), &invariant.ForbiddenTerms); err != nil {
+			return nil, fmt.Errorf("decode invariant terms: %w", err)
+		}
+		invariant.CreatedAt, err = time.Parse(time.RFC3339Nano, createdAt)
+		if err != nil {
+			return nil, fmt.Errorf("parse invariant time: %w", err)
+		}
+		invariants = append(invariants, invariant)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate invariants: %w", err)
+	}
+	return invariants, nil
+}
+
+func (s *ConversationStore) SaveInvariant(ctx context.Context, agentID string, invariant domain.Invariant) error {
+	forbiddenRaw, err := json.Marshal(invariant.ForbiddenTerms)
+	if err != nil {
+		return fmt.Errorf("encode invariant terms: %w", err)
+	}
+	_, err = s.db.ExecContext(ctx, `INSERT INTO agent_invariants
+		(task_id, agent_id, invariant_id, category, title, rule_text, rationale, protection, forbidden_terms_json, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(task_id, agent_id, invariant_id) DO UPDATE SET
+		category = excluded.category, title = excluded.title, rule_text = excluded.rule_text,
+		rationale = excluded.rationale, protection = excluded.protection,
+		forbidden_terms_json = excluded.forbidden_terms_json`,
+		invariant.TaskID, agentID, invariant.ID, invariant.Category, invariant.Title, invariant.Rule,
+		invariant.Rationale, invariant.Protection, string(forbiddenRaw), invariant.CreatedAt.Format(time.RFC3339Nano))
+	if err != nil {
+		return fmt.Errorf("save invariant: %w", err)
 	}
 	return nil
 }

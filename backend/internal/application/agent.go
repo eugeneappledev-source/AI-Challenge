@@ -40,6 +40,8 @@ type ConversationStore interface {
 	LoadTaskState(ctx context.Context, taskID, agentID string) (domain.TaskState, bool, error)
 	SaveTaskState(ctx context.Context, agentID string, state domain.TaskState) error
 	DeleteTaskState(ctx context.Context, taskID, agentID string) error
+	LoadInvariants(ctx context.Context, taskID, agentID string) ([]domain.Invariant, error)
+	SaveInvariant(ctx context.Context, agentID string, invariant domain.Invariant) error
 }
 
 type Agent struct {

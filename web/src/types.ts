@@ -160,3 +160,48 @@ export interface TaskExchange {
   usage: Usage;
   trace: string[];
 }
+
+export type InvariantCategory = "architecture" | "technical_decision" | "stack" | "business_rule";
+export type InvariantProtection = "hard_check" | "semantic_guard";
+export type InvariantVerdict = "allowed" | "rejected";
+
+export interface Invariant {
+  id: string;
+  taskId: string;
+  category: InvariantCategory;
+  title: string;
+  rule: string;
+  rationale: string;
+  protection: InvariantProtection;
+  forbiddenTerms: string[];
+  createdAt: string;
+}
+
+export interface InvariantAssessment {
+  invariantId: string;
+  verdict: "compliant" | "conflict" | "pending_semantic_check";
+  note: string;
+}
+
+export interface InvariantConflict {
+  invariantId: string;
+  title: string;
+  reason: string;
+  detectedBy: "hard_check" | "semantic_guard";
+}
+
+export interface InvariantExchange {
+  request: string;
+  verdict: InvariantVerdict;
+  explanation: string;
+  safeAlternative?: string;
+  answer?: string;
+  invariants: Invariant[];
+  assessments: InvariantAssessment[];
+  conflicts: InvariantConflict[];
+  taskState?: TaskState;
+  model?: string;
+  finishReason?: string;
+  usage: Usage;
+  trace: string[];
+}

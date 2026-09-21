@@ -114,6 +114,34 @@ func TestTaskStateSurvivesStoreReopen(t *testing.T) {
 	}
 }
 
+func TestInvariantsAreStoredSeparatelyFromConversation(t *testing.T) {
+	store, err := Open(filepath.Join(t.TempDir(), "agent.db"))
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	defer store.Close()
+	now := time.Date(2026, 9, 18, 12, 0, 0, 0, time.UTC)
+	invariant := domain.Invariant{
+		ID: "offline", TaskID: "task-1", Category: domain.InvariantCategoryDecision,
+		Title: "Offline-first", Rule: "Local is source of truth", Rationale: "Works without network",
+		Protection: domain.InvariantProtectionHard, ForbiddenTerms: []string{"cloud-only"}, CreatedAt: now,
+	}
+	if err := store.SaveInvariant(context.Background(), "mentor", invariant); err != nil {
+		t.Fatalf("save invariant: %v", err)
+	}
+	loaded, err := store.LoadInvariants(context.Background(), "task-1", "mentor")
+	if err != nil || len(loaded) != 1 {
+		t.Fatalf("load invariants: %+v err=%v", loaded, err)
+	}
+	if loaded[0].Rule != invariant.Rule || loaded[0].ForbiddenTerms[0] != "cloud-only" {
+		t.Fatalf("unexpected invariant: %+v", loaded[0])
+	}
+	conversation, err := store.Load(context.Background(), "task-1", "mentor")
+	if err != nil || len(conversation.Messages) != 0 {
+		t.Fatalf("invariants must not become chat messages: %+v err=%v", conversation, err)
+	}
+}
+
 func TestConversationStoreTrimsWindowAndPersistsFacts(t *testing.T) {
 	store, err := Open(filepath.Join(t.TempDir(), "agent.db"))
 	if err != nil {
