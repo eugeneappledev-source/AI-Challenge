@@ -63,9 +63,94 @@ func (s *ConversationStore) migrate(ctx context.Context) error {
 			updated_at TEXT NOT NULL,
 			PRIMARY KEY (session_id, agent_id)
 		);
+		CREATE TABLE IF NOT EXISTS agent_working_memory (
+			task_id TEXT NOT NULL,
+			agent_id TEXT NOT NULL,
+			memory_key TEXT NOT NULL,
+			memory_value TEXT NOT NULL,
+			source TEXT NOT NULL,
+			updated_at TEXT NOT NULL,
+			PRIMARY KEY (task_id, agent_id, memory_key)
+		);
+		CREATE TABLE IF NOT EXISTS agent_long_term_memory (
+			user_id TEXT NOT NULL,
+			agent_id TEXT NOT NULL,
+			memory_key TEXT NOT NULL,
+			memory_value TEXT NOT NULL,
+			source TEXT NOT NULL,
+			updated_at TEXT NOT NULL,
+			PRIMARY KEY (user_id, agent_id, memory_key)
+		);
 	`)
 	if err != nil {
 		return fmt.Errorf("migrate agent database: %w", err)
+	}
+	return nil
+}
+
+func (s *ConversationStore) LoadWorkingMemory(ctx context.Context, taskID, agentID string) ([]domain.MemoryItem, error) {
+	return s.loadMemoryItems(ctx, "agent_working_memory", "task_id", taskID, agentID)
+}
+
+func (s *ConversationStore) SaveWorkingMemory(ctx context.Context, taskID, agentID string, item domain.MemoryItem) error {
+	return s.saveMemoryItem(ctx, "agent_working_memory", "task_id", taskID, agentID, item)
+}
+
+func (s *ConversationStore) ClearWorkingMemory(ctx context.Context, taskID, agentID string) error {
+	return s.clearMemoryItems(ctx, "agent_working_memory", "task_id", taskID, agentID)
+}
+
+func (s *ConversationStore) LoadLongTermMemory(ctx context.Context, userID, agentID string) ([]domain.MemoryItem, error) {
+	return s.loadMemoryItems(ctx, "agent_long_term_memory", "user_id", userID, agentID)
+}
+
+func (s *ConversationStore) SaveLongTermMemory(ctx context.Context, userID, agentID string, item domain.MemoryItem) error {
+	return s.saveMemoryItem(ctx, "agent_long_term_memory", "user_id", userID, agentID, item)
+}
+
+func (s *ConversationStore) ClearLongTermMemory(ctx context.Context, userID, agentID string) error {
+	return s.clearMemoryItems(ctx, "agent_long_term_memory", "user_id", userID, agentID)
+}
+
+func (s *ConversationStore) loadMemoryItems(ctx context.Context, table, scopeColumn, scopeID, agentID string) ([]domain.MemoryItem, error) {
+	query := fmt.Sprintf(`SELECT memory_key, memory_value, source, updated_at FROM %s WHERE %s = ? AND agent_id = ? ORDER BY updated_at DESC`, table, scopeColumn)
+	rows, err := s.db.QueryContext(ctx, query, scopeID, agentID)
+	if err != nil {
+		return nil, fmt.Errorf("load %s: %w", table, err)
+	}
+	defer rows.Close()
+	items := []domain.MemoryItem{}
+	for rows.Next() {
+		var item domain.MemoryItem
+		var updatedAt string
+		if err := rows.Scan(&item.Key, &item.Value, &item.Source, &updatedAt); err != nil {
+			return nil, fmt.Errorf("scan %s: %w", table, err)
+		}
+		item.UpdatedAt, err = time.Parse(time.RFC3339Nano, updatedAt)
+		if err != nil {
+			return nil, fmt.Errorf("parse %s time: %w", table, err)
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate %s: %w", table, err)
+	}
+	return items, nil
+}
+
+func (s *ConversationStore) saveMemoryItem(ctx context.Context, table, scopeColumn, scopeID, agentID string, item domain.MemoryItem) error {
+	query := fmt.Sprintf(`INSERT INTO %s (%s, agent_id, memory_key, memory_value, source, updated_at) VALUES (?, ?, ?, ?, ?, ?)
+		ON CONFLICT(%s, agent_id, memory_key) DO UPDATE SET memory_value = excluded.memory_value, source = excluded.source, updated_at = excluded.updated_at`, table, scopeColumn, scopeColumn)
+	if _, err := s.db.ExecContext(ctx, query, scopeID, agentID, item.Key, item.Value, item.Source, item.UpdatedAt.Format(time.RFC3339Nano)); err != nil {
+		return fmt.Errorf("save %s: %w", table, err)
+	}
+	return nil
+}
+
+func (s *ConversationStore) clearMemoryItems(ctx context.Context, table, scopeColumn, scopeID, agentID string) error {
+	query := fmt.Sprintf(`DELETE FROM %s WHERE %s = ? AND agent_id = ?`, table, scopeColumn)
+	if _, err := s.db.ExecContext(ctx, query, scopeID, agentID); err != nil {
+		return fmt.Errorf("clear %s: %w", table, err)
 	}
 	return nil
 }

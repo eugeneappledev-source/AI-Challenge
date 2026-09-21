@@ -148,6 +148,20 @@ func (s agentServiceStub) CompareContextStrategies(_ context.Context, sessionID 
 
 func (s agentServiceStub) ClearContextStrategies(_ context.Context, _ string) error { return s.err }
 
+func (s agentServiceStub) RespondWithLayeredMemory(_ context.Context, sessionID, taskID, userID string, layer domain.MemoryLayer, input string) (domain.LayeredMemoryExchange, error) {
+	return domain.LayeredMemoryExchange{
+		Message: input,
+		Route:   domain.MemoryRoute{RequestedLayer: layer, SelectedLayer: domain.MemoryLayerWorking},
+		State:   domain.LayeredMemoryState{SessionID: sessionID, TaskID: taskID, UserID: userID},
+	}, s.err
+}
+
+func (s agentServiceStub) LayeredMemoryState(_ context.Context, sessionID, taskID, userID string) (domain.LayeredMemoryState, error) {
+	return domain.LayeredMemoryState{SessionID: sessionID, TaskID: taskID, UserID: userID}, s.err
+}
+
+func (s agentServiceStub) ClearLayeredMemory(_ context.Context, _, _, _ string) error { return s.err }
+
 func (s *modelBenchmarkServiceRecorder) Run(_ context.Context, prompt string, tier domain.ModelTier) (domain.ModelBenchmarkAttempt, error) {
 	s.prompt = prompt
 	s.tier = tier
@@ -255,6 +269,25 @@ func TestContextStrategyEndpointsExposeSelectorAndComparison(t *testing.T) {
 	handler.Routes().ServeHTTP(compareResponse, compareRequest)
 	if compareResponse.Code != http.StatusOK || !strings.Contains(compareResponse.Body.String(), `"sessionId":"s1"`) || !strings.Contains(compareResponse.Body.String(), `"windowSize":10`) {
 		t.Fatalf("unexpected comparison response: %d %s", compareResponse.Code, compareResponse.Body.String())
+	}
+}
+
+func TestLayeredMemoryEndpointsExposeRoutingAndState(t *testing.T) {
+	handler := newTestHandler(chatServiceStub{}).WithAgentService(agentServiceStub{})
+	messageRequest := httptest.NewRequest(http.MethodPost, "/v1/agent/memory/message", strings.NewReader(`{"sessionId":"s1","taskId":"t1","userId":"u1","layer":"auto","message":"Проект должен работать офлайн"}`))
+	messageRequest.Header.Set("Authorization", "Bearer token")
+	messageResponse := httptest.NewRecorder()
+	handler.Routes().ServeHTTP(messageResponse, messageRequest)
+	if messageResponse.Code != http.StatusOK || !strings.Contains(messageResponse.Body.String(), `"selectedLayer":"working"`) {
+		t.Fatalf("unexpected layered memory response: %d %s", messageResponse.Code, messageResponse.Body.String())
+	}
+
+	stateRequest := httptest.NewRequest(http.MethodGet, "/v1/agent/memory/state?sessionId=s1&taskId=t1&userId=u1", nil)
+	stateRequest.Header.Set("Authorization", "Bearer token")
+	stateResponse := httptest.NewRecorder()
+	handler.Routes().ServeHTTP(stateResponse, stateRequest)
+	if stateResponse.Code != http.StatusOK || !strings.Contains(stateResponse.Body.String(), `"taskId":"t1"`) {
+		t.Fatalf("unexpected layered memory state: %d %s", stateResponse.Code, stateResponse.Body.String())
 	}
 }
 

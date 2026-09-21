@@ -29,6 +29,12 @@ type ConversationStore interface {
 	LoadFacts(ctx context.Context, sessionID, agentID string) (map[string]string, error)
 	SaveFacts(ctx context.Context, sessionID, agentID string, facts map[string]string, updatedAt time.Time) error
 	ClearFacts(ctx context.Context, sessionID, agentID string) error
+	LoadWorkingMemory(ctx context.Context, taskID, agentID string) ([]domain.MemoryItem, error)
+	SaveWorkingMemory(ctx context.Context, taskID, agentID string, item domain.MemoryItem) error
+	ClearWorkingMemory(ctx context.Context, taskID, agentID string) error
+	LoadLongTermMemory(ctx context.Context, userID, agentID string) ([]domain.MemoryItem, error)
+	SaveLongTermMemory(ctx context.Context, userID, agentID string, item domain.MemoryItem) error
+	ClearLongTermMemory(ctx context.Context, userID, agentID string) error
 }
 
 type Agent struct {

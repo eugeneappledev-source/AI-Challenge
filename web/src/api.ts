@@ -3,6 +3,10 @@ import type {
   Comparison,
   ControlledFoodAnswer,
   ResponseMode,
+  LayeredMemoryExchange,
+  LayeredMemoryState,
+  MemoryLayer,
+  MemoryScope,
 } from "./types";
 
 interface APIErrorPayload {
@@ -92,4 +96,66 @@ function isControlledFoodAnswer(value: unknown): value is ControlledFoodAnswer {
     Array.isArray(candidate.steps) &&
     candidate.steps.every((item) => typeof item === "string")
   );
+}
+
+export async function sendLayeredMemoryMessage(
+  scope: MemoryScope,
+  message: string,
+  layer: MemoryLayer,
+  signal?: AbortSignal,
+): Promise<LayeredMemoryExchange> {
+  return requestJSON<LayeredMemoryExchange>("/web-api/agent/memory/message", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...scope, message, layer }),
+    signal,
+  });
+}
+
+export async function loadLayeredMemoryState(
+  scope: MemoryScope,
+  signal?: AbortSignal,
+): Promise<LayeredMemoryState> {
+  const query = memoryScopeQuery(scope);
+  return requestJSON<LayeredMemoryState>(`/web-api/agent/memory/state?${query}`, { signal });
+}
+
+export async function clearLayeredMemory(scope: MemoryScope): Promise<void> {
+  const query = memoryScopeQuery(scope);
+  const response = await fetch(`/web-api/agent/memory?${query}`, { method: "DELETE" });
+  if (!response.ok) {
+    throw await responseError(response);
+  }
+}
+
+function memoryScopeQuery(scope: MemoryScope): URLSearchParams {
+  return new URLSearchParams({
+    sessionId: scope.sessionId,
+    taskId: scope.taskId,
+    userId: scope.userId,
+  });
+}
+
+async function requestJSON<T>(url: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(url, init);
+  if (!response.ok) {
+    throw await responseError(response);
+  }
+  return (await response.json()) as T;
+}
+
+async function responseError(response: Response): Promise<APIError> {
+  let payload: APIErrorPayload | undefined;
+  try {
+    payload = (await response.json()) as APIErrorPayload;
+  } catch {
+    payload = undefined;
+  }
+  const message =
+    response.status === 429
+      ? "Лимит демо-запросов исчерпан. Попробуйте немного позже."
+      : response.status === 502
+        ? "Агент или модель временно недоступны. Попробуйте ещё раз."
+        : payload?.error?.message ?? "Не удалось выполнить запрос.";
+  return new APIError(message, response.status);
 }

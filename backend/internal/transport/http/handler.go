@@ -52,6 +52,9 @@ type AgentService interface {
 	CreateStrategyBranches(ctx context.Context, sessionID string) (domain.ContextStrategyState, error)
 	CompareContextStrategies(ctx context.Context, sessionID string, windowSize int) (domain.ContextStrategyComparison, error)
 	ClearContextStrategies(ctx context.Context, sessionID string) error
+	RespondWithLayeredMemory(ctx context.Context, sessionID, taskID, userID string, layer domain.MemoryLayer, input string) (domain.LayeredMemoryExchange, error)
+	LayeredMemoryState(ctx context.Context, sessionID, taskID, userID string) (domain.LayeredMemoryState, error)
+	ClearLayeredMemory(ctx context.Context, sessionID, taskID, userID string) error
 }
 
 type Handler struct {
@@ -118,8 +121,66 @@ func (h *Handler) Routes() http.Handler {
 		mux.Handle("POST /v1/agent/strategies/branches", h.requireAccessToken(http.HandlerFunc(h.createStrategyBranches)))
 		mux.Handle("POST /v1/agent/strategies/compare", h.requireAccessToken(h.limitRequests(http.HandlerFunc(h.compareContextStrategies))))
 		mux.Handle("DELETE /v1/agent/strategies", h.requireAccessToken(http.HandlerFunc(h.clearContextStrategies)))
+		mux.Handle("POST /v1/agent/memory/message", h.requireAccessToken(h.limitRequests(http.HandlerFunc(h.layeredMemoryMessage))))
+		mux.Handle("GET /v1/agent/memory/state", h.requireAccessToken(http.HandlerFunc(h.layeredMemoryState)))
+		mux.Handle("DELETE /v1/agent/memory", h.requireAccessToken(http.HandlerFunc(h.clearLayeredMemory)))
 	}
 	return h.logging(h.recoverPanic(mux))
+}
+
+type layeredMemoryMessageRequest struct {
+	SessionID string             `json:"sessionId"`
+	TaskID    string             `json:"taskId"`
+	UserID    string             `json:"userId"`
+	Layer     domain.MemoryLayer `json:"layer"`
+	Message   string             `json:"message"`
+}
+
+func (h *Handler) layeredMemoryMessage(response http.ResponseWriter, request *http.Request) {
+	var payload layeredMemoryMessageRequest
+	if err := decodeRequestJSON(response, request, &payload); err != nil {
+		writeAPIError(response, http.StatusBadRequest, "invalid_request", "Request must contain sessionId, taskId, userId, layer and message.")
+		return
+	}
+	exchange, err := h.agentService.RespondWithLayeredMemory(request.Context(), payload.SessionID, payload.TaskID, payload.UserID, payload.Layer, payload.Message)
+	if err != nil {
+		h.writeLayeredMemoryError(response, err)
+		return
+	}
+	writeJSON(response, http.StatusOK, exchange)
+}
+
+func (h *Handler) layeredMemoryState(response http.ResponseWriter, request *http.Request) {
+	state, err := h.agentService.LayeredMemoryState(request.Context(), request.URL.Query().Get("sessionId"), request.URL.Query().Get("taskId"), request.URL.Query().Get("userId"))
+	if err != nil {
+		h.writeLayeredMemoryError(response, err)
+		return
+	}
+	writeJSON(response, http.StatusOK, state)
+}
+
+func (h *Handler) clearLayeredMemory(response http.ResponseWriter, request *http.Request) {
+	if err := h.agentService.ClearLayeredMemory(request.Context(), request.URL.Query().Get("sessionId"), request.URL.Query().Get("taskId"), request.URL.Query().Get("userId")); err != nil {
+		h.writeLayeredMemoryError(response, err)
+		return
+	}
+	response.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) writeLayeredMemoryError(response http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, application.ErrMemoryScopeRequired):
+		writeAPIError(response, http.StatusBadRequest, "memory_scope_required", "Session, task and user IDs are required.")
+	case errors.Is(err, application.ErrInvalidMemoryLayer):
+		writeAPIError(response, http.StatusBadRequest, "invalid_memory_layer", "Layer must be auto, short_term, working, or long_term.")
+	case errors.Is(err, application.ErrEmptyAgentMessage):
+		writeAPIError(response, http.StatusBadRequest, "empty_message", "Message is required.")
+	case errors.Is(err, application.ErrAgentMessageTooLong):
+		writeAPIError(response, http.StatusRequestEntityTooLarge, "message_too_long", "Message is too long.")
+	default:
+		h.logger.Error("layered memory failed", "error", err)
+		writeAPIError(response, http.StatusBadGateway, "memory_error", "The layered memory lab is temporarily unavailable.")
+	}
 }
 
 func (h *Handler) agentProfile(response http.ResponseWriter, _ *http.Request) {

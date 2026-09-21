@@ -39,6 +39,54 @@ type AgentConversation struct {
 	UpdatedAt *time.Time     `json:"updatedAt,omitempty"`
 }
 
+type MemoryLayer string
+
+const (
+	MemoryLayerAuto      MemoryLayer = "auto"
+	MemoryLayerShortTerm MemoryLayer = "short_term"
+	MemoryLayerWorking   MemoryLayer = "working"
+	MemoryLayerLongTerm  MemoryLayer = "long_term"
+)
+
+type MemoryItem struct {
+	Key       string    `json:"key"`
+	Value     string    `json:"value"`
+	Source    string    `json:"source"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+type MemoryRoute struct {
+	RequestedLayer MemoryLayer `json:"requestedLayer"`
+	SelectedLayer  MemoryLayer `json:"selectedLayer"`
+	Key            string      `json:"key"`
+	Value          string      `json:"value"`
+	Reason         string      `json:"reason"`
+	Automatic      bool        `json:"automatic"`
+}
+
+type LayeredMemoryState struct {
+	SessionID string         `json:"sessionId"`
+	TaskID    string         `json:"taskId"`
+	UserID    string         `json:"userId"`
+	ShortTerm []AgentMessage `json:"shortTerm"`
+	Working   []MemoryItem   `json:"working"`
+	LongTerm  []MemoryItem   `json:"longTerm"`
+	UpdatedAt time.Time      `json:"updatedAt"`
+}
+
+type LayeredMemoryExchange struct {
+	Agent          AgentProfile       `json:"agent"`
+	Message        string             `json:"message"`
+	Answer         string             `json:"answer"`
+	Model          string             `json:"model"`
+	FinishReason   string             `json:"finishReason"`
+	Usage          Usage              `json:"usage"`
+	Route          MemoryRoute        `json:"route"`
+	State          LayeredMemoryState `json:"state"`
+	ContextPreview []string           `json:"contextPreview"`
+	Trace          []string           `json:"trace"`
+}
+
 type AgentTokenMetrics struct {
 	ConversationID                string          `json:"conversationId"`
 	Model                         string          `json:"model"`

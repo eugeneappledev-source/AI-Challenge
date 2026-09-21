@@ -25,3 +25,57 @@ export interface Comparison {
   unrestricted: ChatReply;
   controlled: ChatReply;
 }
+
+export type MemoryLayer = "auto" | "short_term" | "working" | "long_term";
+
+export interface AgentMessage {
+  id: string;
+  role: "user" | "assistant" | "system";
+  content: string;
+  createdAt: string;
+  usage?: Usage;
+}
+
+export interface MemoryItem {
+  key: string;
+  value: string;
+  source: string;
+  updatedAt: string;
+}
+
+export interface MemoryRoute {
+  requestedLayer: MemoryLayer;
+  selectedLayer: Exclude<MemoryLayer, "auto">;
+  key: string;
+  value: string;
+  reason: string;
+  automatic: boolean;
+}
+
+export interface LayeredMemoryState {
+  sessionId: string;
+  taskId: string;
+  userId: string;
+  shortTerm: AgentMessage[];
+  working: MemoryItem[];
+  longTerm: MemoryItem[];
+  updatedAt: string;
+}
+
+export interface LayeredMemoryExchange {
+  message: string;
+  answer: string;
+  model: string;
+  finishReason: string;
+  usage: Usage;
+  route: MemoryRoute;
+  state: LayeredMemoryState;
+  contextPreview: string[];
+  trace: string[];
+}
+
+export interface MemoryScope {
+  sessionId: string;
+  taskId: string;
+  userId: string;
+}

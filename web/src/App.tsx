@@ -7,6 +7,7 @@ import type {
   ControlledFoodAnswer,
   ResponseMode,
 } from "./types";
+import MemoryLab from "./MemoryLab";
 
 const suggestions = [
   "Дай простой рецепт греческого салата.",
@@ -15,6 +16,9 @@ const suggestions = [
 ];
 
 function App() {
+	const [activeDay, setActiveDay] = useState<"day-02" | "day-11">(() =>
+		window.location.hash === "#day-02" ? "day-02" : "day-11",
+	);
   const [message, setMessage] = useState("");
   const [comparison, setComparison] = useState<Comparison | null>(null);
   const [selectedMode, setSelectedMode] =
@@ -24,6 +28,11 @@ function App() {
   const abortController = useRef<AbortController | null>(null);
 
   useEffect(() => () => abortController.current?.abort(), []);
+  useEffect(() => {
+    const updateDay = () => setActiveDay(window.location.hash === "#day-02" ? "day-02" : "day-11");
+    window.addEventListener("hashchange", updateDay);
+    return () => window.removeEventListener("hashchange", updateDay);
+  }, []);
 
   const controlledAnswer = useMemo(() => {
     if (!comparison) return null;
@@ -68,6 +77,10 @@ function App() {
 
   const selectedReply = comparison?.[selectedMode] ?? null;
 
+  if (activeDay === "day-11") {
+    return <MemoryLab />;
+  }
+
   return (
     <main className="page-shell">
       <nav className="topbar" aria-label="Навигация">
@@ -75,7 +88,10 @@ function App() {
           <span className="brand-mark" aria-hidden="true">AI</span>
           <span>Challenge</span>
         </a>
-        <div className="day-badge"><span /> День 2 · Формат ответа</div>
+        <div className="day-switcher" aria-label="Выбор задания">
+          <a className="selected" href="#day-02">День 2</a>
+          <a href="#day-11">День 11</a>
+        </div>
         <a
           className="github-link"
           href="https://github.com/eugeneappledev-source/AI-Challenge"

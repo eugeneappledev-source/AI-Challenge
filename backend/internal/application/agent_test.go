@@ -32,6 +32,8 @@ type conversationStoreStub struct {
 	appended     []domain.AgentMessage
 	summary      domain.ConversationSummary
 	facts        map[string]string
+	working      []domain.MemoryItem
+	longTerm     []domain.MemoryItem
 }
 
 func (s *conversationStoreStub) LoadSummary(_ context.Context, conversationID, agentID string) (domain.ConversationSummary, error) {
@@ -85,6 +87,44 @@ func (s *conversationStoreStub) SaveFacts(_ context.Context, _, _ string, facts 
 func (s *conversationStoreStub) ClearFacts(_ context.Context, _, _ string) error {
 	s.facts = nil
 	return nil
+}
+
+func (s *conversationStoreStub) LoadWorkingMemory(_ context.Context, _, _ string) ([]domain.MemoryItem, error) {
+	return append([]domain.MemoryItem(nil), s.working...), nil
+}
+
+func (s *conversationStoreStub) SaveWorkingMemory(_ context.Context, _, _ string, item domain.MemoryItem) error {
+	s.working = upsertMemoryItem(s.working, item)
+	return nil
+}
+
+func (s *conversationStoreStub) ClearWorkingMemory(_ context.Context, _, _ string) error {
+	s.working = nil
+	return nil
+}
+
+func (s *conversationStoreStub) LoadLongTermMemory(_ context.Context, _, _ string) ([]domain.MemoryItem, error) {
+	return append([]domain.MemoryItem(nil), s.longTerm...), nil
+}
+
+func (s *conversationStoreStub) SaveLongTermMemory(_ context.Context, _, _ string, item domain.MemoryItem) error {
+	s.longTerm = upsertMemoryItem(s.longTerm, item)
+	return nil
+}
+
+func (s *conversationStoreStub) ClearLongTermMemory(_ context.Context, _, _ string) error {
+	s.longTerm = nil
+	return nil
+}
+
+func upsertMemoryItem(items []domain.MemoryItem, item domain.MemoryItem) []domain.MemoryItem {
+	for index := range items {
+		if items[index].Key == item.Key {
+			items[index] = item
+			return items
+		}
+	}
+	return append(items, item)
 }
 
 func (r *agentModelRecorder) Generate(_ context.Context, request domain.ModelRequest) (domain.ModelResponse, error) {
@@ -253,5 +293,32 @@ func TestContextComparisonUsesSameQuestionAndIndependentReviewer(t *testing.T) {
 	}
 	if comparison.PromptTokensSaved != 100 || comparison.SavingsPercent != 50 || !comparison.Review.QualityPreserved {
 		t.Fatalf("unexpected comparison: %+v", comparison)
+	}
+}
+
+func TestLayeredMemoryRoutesTaskFactAndBuildsThreeContextLayers(t *testing.T) {
+	client := &agentModelSequence{replies: []domain.ModelResponse{
+		{Content: `{"layer":"working","key":"offline_mode","value":"Приложение должно работать офлайн","reason":"Ограничение текущей задачи"}`},
+		{Content: "Учту offline-first архитектуру.", Model: "deepseek-flash", FinishReason: "stop", Usage: domain.Usage{TotalTokens: 42}},
+	}}
+	store := &conversationStoreStub{longTerm: []domain.MemoryItem{{Key: "role", Value: "iOS-разработчик"}}}
+	agent := NewAgent(domain.AgentProfile{ID: "mentor", Model: "deepseek-flash", Instructions: "Помогай", MaxOutputTokens: 1000}, client, 4000).WithMemory(store)
+
+	exchange, err := agent.RespondWithLayeredMemory(context.Background(), "s1", "pulse-plan", "u1", domain.MemoryLayerAuto, "Приложение должно работать офлайн")
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if exchange.Route.SelectedLayer != domain.MemoryLayerWorking || len(store.working) != 1 {
+		t.Fatalf("expected task fact in working memory, got route=%+v state=%+v", exchange.Route, store.working)
+	}
+	if len(client.requests) != 2 || len(client.requests[1].Messages) < 4 {
+		t.Fatalf("expected routing call and assembled generation context, got %+v", client.requests)
+	}
+	if !strings.Contains(client.requests[1].Messages[1].Content, "iOS-разработчик") || !strings.Contains(client.requests[1].Messages[2].Content, "offline") {
+		t.Fatalf("expected long-term and working blocks, got %+v", client.requests[1].Messages)
+	}
+	if len(exchange.State.ShortTerm) != 2 || exchange.Answer == "" {
+		t.Fatalf("expected persisted short-term exchange, got %+v", exchange)
 	}
 }
