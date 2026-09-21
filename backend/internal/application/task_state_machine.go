@@ -41,7 +41,7 @@ func (a *Agent) CreateTask(ctx context.Context, taskID, userID, profileID, goal 
 		Phase: domain.TaskPhasePlanning, Status: domain.TaskStatusActive,
 		CurrentStep:    "Сформировать план и критерии успеха",
 		ExpectedAction: "Проверьте план и перейдите к выполнению",
-		Artifacts:      []domain.TaskArtifact{}, Transitions: []domain.TaskTransition{},
+		Artifacts:      []domain.TaskArtifact{}, Transitions: []domain.TaskTransition{}, Attempts: []domain.TaskTransitionAttempt{},
 		Revision: 1, CreatedAt: now, UpdatedAt: now,
 	}
 	state.Transitions = append(state.Transitions, domain.TaskTransition{
@@ -174,33 +174,7 @@ func (a *Agent) advanceTask(ctx context.Context, state domain.TaskState) (domain
 	if state.Phase == domain.TaskPhaseDone {
 		return domain.TaskExchange{}, ErrTaskDone
 	}
-	next := nextTaskPhase(state.Phase)
-	previous := state.Phase
-	state.Phase = next
-	state.CurrentStep, state.ExpectedAction = taskPhaseCopy(next)
-	profile, err := a.taskProfile(ctx, state.UserID, state.ProfileID)
-	if err != nil {
-		return domain.TaskExchange{}, err
-	}
-	response, err := a.runTaskPhase(ctx, profile, state, taskPhaseInstruction(next))
-	if err != nil {
-		return domain.TaskExchange{}, err
-	}
-	now := a.now().UTC()
-	state.Revision++
-	state.UpdatedAt = now
-	state.Artifacts = append(state.Artifacts, domain.TaskArtifact{Phase: next, Title: taskArtifactTitle(next), Content: response.Content, CreatedAt: now})
-	state.Transitions = append(state.Transitions, domain.TaskTransition{
-		Action: "advance", From: previous, To: next, Summary: "Завершён предыдущий этап и сохранён результат нового этапа", CreatedAt: now,
-	})
-	if err := a.store.SaveTaskState(ctx, a.profile.ID, state); err != nil {
-		return domain.TaskExchange{}, err
-	}
-	return taskExchange(state, response, []string{
-		"Backend selected the next state deterministically",
-		"Agent received the formal task state and previous artifacts",
-		"Phase artifact and updated state were persisted",
-	}), nil
+	return a.executeTaskTransition(ctx, state, nextTaskPhase(state.Phase), "advance", "Последовательный переход happy path")
 }
 
 func (a *Agent) runTaskPhase(ctx context.Context, profile domain.UserProfile, state domain.TaskState, instruction string) (domain.ModelResponse, error) {
@@ -230,6 +204,7 @@ revision: %d`, state.ID, state.Goal, state.Phase, state.Status, state.CurrentSte
 		Messages: []domain.ModelMessage{
 			{Role: "system", Content: a.profile.Instructions},
 			{Role: "system", Content: profileInstruction(profile)},
+			{Role: "system", Content: "Дай законченный результат текущего этапа не более 450 слов. Не обрывай последнюю мысль."},
 			{Role: "system", Content: stateBlock},
 			{Role: "system", Content: formatMemoryBlock("Долговременная память пользователя", memory.LongTerm)},
 			{Role: "system", Content: formatMemoryBlock("Рабочая память задачи", memory.Working)},

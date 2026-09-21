@@ -147,9 +147,46 @@ export interface TaskState {
   expectedAction: string;
   artifacts: TaskArtifact[];
   transitions: TaskTransition[];
+  attempts: TaskTransitionAttempt[];
   revision: number;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface TaskTransitionAttempt {
+  from: TaskPhase;
+  to: TaskPhase;
+  allowed: boolean;
+  code: string;
+  reason: string;
+  createdAt: string;
+}
+
+export interface TaskTransitionRule {
+  from: TaskPhase;
+  to: TaskPhase;
+  direction: "forward" | "rollback";
+  requirement: string;
+}
+
+export interface TaskLifecycleGraph {
+  states: TaskPhase[];
+  rules: TaskTransitionRule[];
+}
+
+export interface ControlledTransitionExchange {
+  allowed: boolean;
+  code: string;
+  reason: string;
+  requestedFrom: TaskPhase;
+  requestedTo: TaskPhase;
+  allowedTargets: TaskPhase[];
+  state: TaskState;
+  answer?: string;
+  model?: string;
+  finishReason?: string;
+  usage: Usage;
+  trace: string[];
 }
 
 export interface TaskExchange {

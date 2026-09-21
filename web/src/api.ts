@@ -14,6 +14,9 @@ import type {
   TaskState,
   Invariant,
   InvariantExchange,
+  ControlledTransitionExchange,
+  TaskLifecycleGraph,
+  TaskPhase,
 } from "./types";
 
 interface APIErrorPayload {
@@ -250,6 +253,24 @@ export async function checkInvariants(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ taskId, userId, profileId, request }),
+    signal,
+  });
+}
+
+export async function loadTaskLifecycleGraph(signal?: AbortSignal): Promise<TaskLifecycleGraph> {
+  return requestJSON<TaskLifecycleGraph>("/web-api/agent/tasks/graph", { signal });
+}
+
+export async function transitionTask(
+  taskId: string,
+  target: TaskPhase,
+  reason: string,
+  signal?: AbortSignal,
+): Promise<ControlledTransitionExchange> {
+  return requestJSON<ControlledTransitionExchange>("/web-api/agent/tasks/transition", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ taskId, target, reason }),
     signal,
   });
 }

@@ -61,6 +61,8 @@ type AgentService interface {
 	CreateTask(ctx context.Context, taskID, userID, profileID, goal string) (domain.TaskExchange, error)
 	TaskState(ctx context.Context, taskID string) (domain.TaskState, error)
 	ActOnTask(ctx context.Context, taskID string, action domain.TaskAction) (domain.TaskExchange, error)
+	TaskLifecycleGraph() domain.TaskLifecycleGraph
+	TransitionTask(ctx context.Context, taskID string, target domain.TaskPhase, reason string) (domain.ControlledTransitionExchange, error)
 	DeleteTask(ctx context.Context, taskID string) error
 	Invariants(ctx context.Context, taskID string) ([]domain.Invariant, error)
 	RespondWithInvariants(ctx context.Context, taskID, userID, profileID, input string) (domain.InvariantExchange, error)
@@ -139,6 +141,8 @@ func (h *Handler) Routes() http.Handler {
 		mux.Handle("POST /v1/agent/tasks", h.requireAccessToken(h.limitRequests(http.HandlerFunc(h.createTask))))
 		mux.Handle("GET /v1/agent/tasks/state", h.requireAccessToken(http.HandlerFunc(h.taskState)))
 		mux.Handle("POST /v1/agent/tasks/action", h.requireAccessToken(h.limitRequests(http.HandlerFunc(h.actOnTask))))
+		mux.Handle("GET /v1/agent/tasks/graph", h.requireAccessToken(http.HandlerFunc(h.taskLifecycleGraph)))
+		mux.Handle("POST /v1/agent/tasks/transition", h.requireAccessToken(h.limitRequests(http.HandlerFunc(h.transitionTask))))
 		mux.Handle("DELETE /v1/agent/tasks", h.requireAccessToken(http.HandlerFunc(h.deleteTask)))
 		mux.Handle("GET /v1/agent/invariants", h.requireAccessToken(http.HandlerFunc(h.invariants)))
 		mux.Handle("POST /v1/agent/invariants/check", h.requireAccessToken(h.limitRequests(http.HandlerFunc(h.checkInvariants))))
@@ -241,6 +245,30 @@ func (h *Handler) actOnTask(response http.ResponseWriter, request *http.Request)
 	writeJSON(response, http.StatusOK, exchange)
 }
 
+func (h *Handler) taskLifecycleGraph(response http.ResponseWriter, _ *http.Request) {
+	writeJSON(response, http.StatusOK, h.agentService.TaskLifecycleGraph())
+}
+
+type taskTransitionRequest struct {
+	TaskID string           `json:"taskId"`
+	Target domain.TaskPhase `json:"target"`
+	Reason string           `json:"reason"`
+}
+
+func (h *Handler) transitionTask(response http.ResponseWriter, request *http.Request) {
+	var payload taskTransitionRequest
+	if err := decodeRequestJSON(response, request, &payload); err != nil {
+		writeAPIError(response, http.StatusBadRequest, "invalid_request", "Request must contain taskId, target and optional reason.")
+		return
+	}
+	exchange, err := h.agentService.TransitionTask(request.Context(), payload.TaskID, payload.Target, payload.Reason)
+	if err != nil {
+		h.writeTaskError(response, err)
+		return
+	}
+	writeJSON(response, http.StatusOK, exchange)
+}
+
 func (h *Handler) deleteTask(response http.ResponseWriter, request *http.Request) {
 	if err := h.agentService.DeleteTask(request.Context(), request.URL.Query().Get("taskId")); err != nil {
 		h.writeTaskError(response, err)
@@ -259,6 +287,8 @@ func (h *Handler) writeTaskError(response http.ResponseWriter, err error) {
 		writeAPIError(response, http.StatusNotFound, "profile_not_found", "The selected profile does not exist.")
 	case errors.Is(err, application.ErrInvalidTaskAction):
 		writeAPIError(response, http.StatusBadRequest, "invalid_task_action", "Action must be advance, pause, or resume.")
+	case errors.Is(err, application.ErrInvalidTaskPhase):
+		writeAPIError(response, http.StatusBadRequest, "invalid_task_phase", "Target must be planning, execution, validation, or done.")
 	case errors.Is(err, application.ErrTaskAlreadyPaused):
 		writeAPIError(response, http.StatusConflict, "task_paused", "Resume the paused task before continuing.")
 	case errors.Is(err, application.ErrTaskNotPaused):

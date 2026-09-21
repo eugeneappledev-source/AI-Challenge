@@ -90,7 +90,7 @@ function TaskStateLab() {
       <nav className="topbar" aria-label="Навигация">
         <a className="brand" href="#day-13"><span className="brand-mark">AI</span><span>Challenge</span></a>
         <div className="day-switcher" aria-label="Выбор задания">
-          <a href="#day-02">День 2</a><a href="#day-11">День 11</a><a href="#day-12">День 12</a><a className="selected" href="#day-13">День 13</a><a href="#day-14">День 14</a>
+          <a href="#day-02">День 2</a><a href="#day-11">День 11</a><a href="#day-12">День 12</a><a className="selected" href="#day-13">День 13</a><a href="#day-14">День 14</a><a href="#day-15">День 15</a>
         </div>
         <a className="github-link" href="https://github.com/eugeneappledev-source/AI-Challenge" target="_blank" rel="noreferrer">GitHub <span>↗</span></a>
       </nav>

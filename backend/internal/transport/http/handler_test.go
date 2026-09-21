@@ -189,6 +189,17 @@ func (s agentServiceStub) ActOnTask(_ context.Context, taskID string, action dom
 	return domain.TaskExchange{State: domain.TaskState{ID: taskID, Phase: domain.TaskPhaseValidation}, Answer: string(action)}, s.err
 }
 
+func (s agentServiceStub) TaskLifecycleGraph() domain.TaskLifecycleGraph {
+	return domain.TaskLifecycleGraph{States: []domain.TaskPhase{domain.TaskPhasePlanning, domain.TaskPhaseExecution}}
+}
+
+func (s agentServiceStub) TransitionTask(_ context.Context, taskID string, target domain.TaskPhase, reason string) (domain.ControlledTransitionExchange, error) {
+	return domain.ControlledTransitionExchange{
+		Allowed: true, Code: "transition_applied", RequestedFrom: domain.TaskPhasePlanning, RequestedTo: target,
+		State: domain.TaskState{ID: taskID, Phase: target}, Reason: reason,
+	}, s.err
+}
+
 func (s agentServiceStub) DeleteTask(_ context.Context, _ string) error { return s.err }
 
 func (s agentServiceStub) Invariants(_ context.Context, taskID string) ([]domain.Invariant, error) {
@@ -371,6 +382,25 @@ func TestTaskStateMachineEndpointsExposeStateAndAction(t *testing.T) {
 	handler.Routes().ServeHTTP(actionResponse, actionRequest)
 	if actionResponse.Code != http.StatusOK || !strings.Contains(actionResponse.Body.String(), `"phase":"validation"`) || !strings.Contains(actionResponse.Body.String(), `"answer":"advance"`) {
 		t.Fatalf("unexpected task action response: %d %s", actionResponse.Code, actionResponse.Body.String())
+	}
+}
+
+func TestControlledTransitionEndpointsExposeGraphAndDecision(t *testing.T) {
+	handler := newTestHandler(chatServiceStub{}).WithAgentService(agentServiceStub{})
+	graphRequest := httptest.NewRequest(http.MethodGet, "/v1/agent/tasks/graph", nil)
+	graphRequest.Header.Set("Authorization", "Bearer token")
+	graphResponse := httptest.NewRecorder()
+	handler.Routes().ServeHTTP(graphResponse, graphRequest)
+	if graphResponse.Code != http.StatusOK || !strings.Contains(graphResponse.Body.String(), `"planning"`) || !strings.Contains(graphResponse.Body.String(), `"execution"`) {
+		t.Fatalf("unexpected transition graph response: %d %s", graphResponse.Code, graphResponse.Body.String())
+	}
+
+	transitionRequest := httptest.NewRequest(http.MethodPost, "/v1/agent/tasks/transition", strings.NewReader(`{"taskId":"t1","target":"execution","reason":"План утверждён"}`))
+	transitionRequest.Header.Set("Authorization", "Bearer token")
+	transitionResponse := httptest.NewRecorder()
+	handler.Routes().ServeHTTP(transitionResponse, transitionRequest)
+	if transitionResponse.Code != http.StatusOK || !strings.Contains(transitionResponse.Body.String(), `"allowed":true`) || !strings.Contains(transitionResponse.Body.String(), `"requestedTo":"execution"`) {
+		t.Fatalf("unexpected controlled transition response: %d %s", transitionResponse.Code, transitionResponse.Body.String())
 	}
 }
 
