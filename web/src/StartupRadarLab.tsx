@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { APIError, inspectMCPConnection } from "./api";
 import type { MCPConnectionResult } from "./types";
+import BusinessResearchLab from "./BusinessResearchLab";
 
 type RadarDay = "day-16" | "day-17" | "day-18" | "day-19" | "day-20";
 
 function StartupRadarLab({ day }: { day: RadarDay }) {
+  if (day === "day-17") return <BusinessResearchLab />;
   const [result, setResult] = useState<MCPConnectionResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

@@ -41,6 +41,10 @@ type MCPConnectionService interface {
 	Inspect(ctx context.Context) (domain.MCPConnectionResult, error)
 }
 
+type BusinessResearchService interface {
+	Research(ctx context.Context, request string) (domain.BusinessResearchResult, error)
+}
+
 type AgentService interface {
 	Profile() domain.AgentProfile
 	Respond(ctx context.Context, input string) (domain.AgentExchange, error)
@@ -73,15 +77,16 @@ type AgentService interface {
 }
 
 type Handler struct {
-	chatService           ChatService
-	reasoningService      ReasoningService
-	temperatureService    TemperatureService
-	modelBenchmarkService ModelBenchmarkService
-	agentService          AgentService
-	mcpConnectionService  MCPConnectionService
-	logger                *slog.Logger
-	appAccessToken        string
-	rateLimiter           *rateLimiter
+	chatService             ChatService
+	reasoningService        ReasoningService
+	temperatureService      TemperatureService
+	modelBenchmarkService   ModelBenchmarkService
+	agentService            AgentService
+	mcpConnectionService    MCPConnectionService
+	businessResearchService BusinessResearchService
+	logger                  *slog.Logger
+	appAccessToken          string
+	rateLimiter             *rateLimiter
 }
 
 func (h *Handler) WithAgentService(service AgentService) *Handler {
@@ -91,6 +96,11 @@ func (h *Handler) WithAgentService(service AgentService) *Handler {
 
 func (h *Handler) WithMCPConnectionService(service MCPConnectionService) *Handler {
 	h.mcpConnectionService = service
+	return h
+}
+
+func (h *Handler) WithBusinessResearchService(service BusinessResearchService) *Handler {
+	h.businessResearchService = service
 	return h
 }
 
@@ -160,7 +170,36 @@ func (h *Handler) Routes() http.Handler {
 	if h.mcpConnectionService != nil {
 		mux.Handle("GET /v1/radar/connection", h.requireAccessToken(http.HandlerFunc(h.mcpConnection)))
 	}
+	if h.businessResearchService != nil {
+		mux.Handle("POST /v1/radar/research", h.requireAccessToken(h.limitRequests(http.HandlerFunc(h.businessResearch))))
+	}
 	return h.logging(h.recoverPanic(mux))
+}
+
+type businessResearchRequest struct {
+	Request string `json:"request"`
+}
+
+func (h *Handler) businessResearch(response http.ResponseWriter, request *http.Request) {
+	var payload businessResearchRequest
+	if err := decodeRequestJSON(response, request, &payload); err != nil {
+		writeAPIError(response, http.StatusBadRequest, "invalid_request", "Request must contain a business research question.")
+		return
+	}
+	result, err := h.businessResearchService.Research(request.Context(), payload.Request)
+	if err != nil {
+		switch {
+		case errors.Is(err, application.ErrEmptyResearchRequest):
+			writeAPIError(response, http.StatusBadRequest, "empty_request", "Research question is required.")
+		case errors.Is(err, application.ErrResearchRequestTooLong):
+			writeAPIError(response, http.StatusRequestEntityTooLarge, "request_too_long", "Research question is too long.")
+		default:
+			h.logger.Error("business research failed", "error", err)
+			writeAPIError(response, http.StatusBadGateway, "business_research_error", "Business research is temporarily unavailable.")
+		}
+		return
+	}
+	writeJSON(response, http.StatusOK, result)
 }
 
 func (h *Handler) mcpConnection(response http.ResponseWriter, request *http.Request) {

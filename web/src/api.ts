@@ -18,6 +18,7 @@ import type {
   TaskLifecycleGraph,
   TaskPhase,
   MCPConnectionResult,
+  BusinessResearchResult,
 } from "./types";
 
 interface APIErrorPayload {
@@ -278,4 +279,13 @@ export async function transitionTask(
 
 export async function inspectMCPConnection(signal?: AbortSignal): Promise<MCPConnectionResult> {
   return requestJSON<MCPConnectionResult>("/web-api/radar/connection", { signal });
+}
+
+export async function researchBusinessNews(request: string, signal?: AbortSignal): Promise<BusinessResearchResult> {
+  return requestJSON<BusinessResearchResult>("/web-api/radar/research", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ request }),
+    signal,
+  });
 }

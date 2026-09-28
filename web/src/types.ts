@@ -262,3 +262,41 @@ export interface MCPConnectionResult {
   trace: string[];
   checkedAt: string;
 }
+
+export interface BusinessStory {
+  id: string;
+  title: string;
+  url: string;
+  discussionUrl: string;
+  source: string;
+  author: string;
+  score: number;
+  publishedAt: string;
+}
+
+export interface MCPToolSelection {
+  server: string;
+  tool: string;
+  arguments: Record<string, unknown>;
+  rationale: string;
+}
+
+export interface BusinessOpportunity {
+  title: string;
+  whyNow: string;
+  firstStep: string;
+  risk: string;
+}
+
+export interface BusinessResearchResult {
+  request: string;
+  selection: MCPToolSelection;
+  stories: BusinessStory[];
+  advice: { summary: string; opportunities: BusinessOpportunity[]; caveat: string };
+  model: string;
+  finishReason: string;
+  usage: Usage;
+  availableTools: MCPToolDescriptor[];
+  trace: string[];
+  completedAt: string;
+}

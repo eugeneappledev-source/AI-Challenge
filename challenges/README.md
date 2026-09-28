@@ -37,6 +37,7 @@
 | День | Фокус | Реализация | Результат |
 |:---:|---|---|:---:|
 | [16](day-16/README.md) | Подключение MCP | Official Go SDK, Streamable HTTP и `tools/list` | ✅ |
+| [17](day-17/README.md) | Первый MCP-инструмент | Agent routing, Hacker News API и structured result | ✅ |
 
 ## Как читать дневник
 
