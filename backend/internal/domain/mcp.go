@@ -46,6 +46,28 @@ type BusinessResearchResult struct {
 	CompletedAt    time.Time           `json:"completedAt"`
 }
 
+type ScheduledDigest struct {
+	ID        string                 `json:"id"`
+	Trigger   string                 `json:"trigger"`
+	Query     string                 `json:"query"`
+	Result    BusinessResearchResult `json:"result"`
+	CreatedAt time.Time              `json:"createdAt"`
+}
+
+type RadarSchedule struct {
+	Cron       string     `json:"cron"`
+	Timezone   string     `json:"timezone"`
+	Enabled    bool       `json:"enabled"`
+	NextRunAt  time.Time  `json:"nextRunAt"`
+	LastRunAt  *time.Time `json:"lastRunAt,omitempty"`
+	LastStatus string     `json:"lastStatus"`
+}
+
+type DigestDashboard struct {
+	Schedule RadarSchedule     `json:"schedule"`
+	Digests  []ScheduledDigest `json:"digests"`
+}
+
 type MCPToolDescriptor struct {
 	Name        string         `json:"name"`
 	Title       string         `json:"title,omitempty"`

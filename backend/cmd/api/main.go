@@ -55,10 +55,11 @@ func main() {
 	researchMCP := mcpserver.NewResearchServer(newsClient)
 	mcpConnectionService := application.NewMCPConnectionService(cfg.MCPResearchURL)
 	businessResearchService := application.NewBusinessResearchService(llmClient, cfg.MCPResearchURL, cfg.MaxMessageRunes)
+	scheduledDigestService := application.NewScheduledDigestService(businessResearchService, memoryStore, cfg.RadarCron, cfg.RadarTimezone)
 	handler := httptransport.NewHandler(chatService, reasoningService, temperatureService, modelBenchmarkService, logger, cfg.AppAccessToken, httptransport.RateLimitConfig{
 		PerMinute: cfg.RateLimitPerMinute,
 		PerDay:    cfg.DailyRequestLimit,
-	}).WithAgentService(agentService).WithMCPConnectionService(mcpConnectionService).WithBusinessResearchService(businessResearchService)
+	}).WithAgentService(agentService).WithMCPConnectionService(mcpConnectionService).WithBusinessResearchService(businessResearchService).WithScheduledDigestService(scheduledDigestService)
 	rootHandler := http.NewServeMux()
 	rootHandler.Handle("/mcp/research", mcpserver.StreamableHandler(researchMCP))
 	rootHandler.Handle("/", handler.Routes())

@@ -35,6 +35,19 @@ services:
     networks:
       - app-network
 
+  radar-scheduler:
+    build:
+      context: ./scheduler
+    env_file:
+      - ../.env
+    environment:
+      RADAR_API_URL: http://api:8080
+    restart: unless-stopped
+    depends_on:
+      - api
+    networks:
+      - app-network
+
   caddy:
     image: caddy:2.10-alpine
     environment:

@@ -19,6 +19,8 @@ import type {
   TaskPhase,
   MCPConnectionResult,
   BusinessResearchResult,
+  DigestDashboard,
+  ScheduledDigest,
 } from "./types";
 
 interface APIErrorPayload {
@@ -286,6 +288,19 @@ export async function researchBusinessNews(request: string, signal?: AbortSignal
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ request }),
+    signal,
+  });
+}
+
+export async function loadDigestDashboard(signal?: AbortSignal): Promise<DigestDashboard> {
+  return requestJSON<DigestDashboard>("/web-api/radar/digests", { signal });
+}
+
+export async function runBusinessDigest(signal?: AbortSignal): Promise<ScheduledDigest> {
+  return requestJSON<ScheduledDigest>("/web-api/radar/digests/run", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ trigger: "manual" }),
     signal,
   });
 }

@@ -300,3 +300,23 @@ export interface BusinessResearchResult {
   trace: string[];
   completedAt: string;
 }
+
+export interface ScheduledDigest {
+  id: string;
+  trigger: "cron" | "manual";
+  query: string;
+  result: BusinessResearchResult;
+  createdAt: string;
+}
+
+export interface DigestDashboard {
+  schedule: {
+    cron: string;
+    timezone: string;
+    enabled: boolean;
+    nextRunAt: string;
+    lastRunAt?: string;
+    lastStatus: string;
+  };
+  digests: ScheduledDigest[];
+}

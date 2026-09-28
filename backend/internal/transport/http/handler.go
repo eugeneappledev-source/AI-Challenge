@@ -45,6 +45,11 @@ type BusinessResearchService interface {
 	Research(ctx context.Context, request string) (domain.BusinessResearchResult, error)
 }
 
+type ScheduledDigestService interface {
+	Run(ctx context.Context, trigger string) (domain.ScheduledDigest, error)
+	Dashboard(ctx context.Context) (domain.DigestDashboard, error)
+}
+
 type AgentService interface {
 	Profile() domain.AgentProfile
 	Respond(ctx context.Context, input string) (domain.AgentExchange, error)
@@ -84,6 +89,7 @@ type Handler struct {
 	agentService            AgentService
 	mcpConnectionService    MCPConnectionService
 	businessResearchService BusinessResearchService
+	scheduledDigestService  ScheduledDigestService
 	logger                  *slog.Logger
 	appAccessToken          string
 	rateLimiter             *rateLimiter
@@ -101,6 +107,11 @@ func (h *Handler) WithMCPConnectionService(service MCPConnectionService) *Handle
 
 func (h *Handler) WithBusinessResearchService(service BusinessResearchService) *Handler {
 	h.businessResearchService = service
+	return h
+}
+
+func (h *Handler) WithScheduledDigestService(service ScheduledDigestService) *Handler {
+	h.scheduledDigestService = service
 	return h
 }
 
@@ -173,7 +184,40 @@ func (h *Handler) Routes() http.Handler {
 	if h.businessResearchService != nil {
 		mux.Handle("POST /v1/radar/research", h.requireAccessToken(h.limitRequests(http.HandlerFunc(h.businessResearch))))
 	}
+	if h.scheduledDigestService != nil {
+		mux.Handle("GET /v1/radar/digests", h.requireAccessToken(http.HandlerFunc(h.digestDashboard)))
+		mux.Handle("POST /v1/radar/digests/run", h.requireAccessToken(h.limitRequests(http.HandlerFunc(h.runDigest))))
+	}
 	return h.logging(h.recoverPanic(mux))
+}
+
+func (h *Handler) digestDashboard(response http.ResponseWriter, request *http.Request) {
+	dashboard, err := h.scheduledDigestService.Dashboard(request.Context())
+	if err != nil {
+		h.logger.Error("load digest dashboard failed", "error", err)
+		writeAPIError(response, http.StatusInternalServerError, "digest_store_error", "Digest history is temporarily unavailable.")
+		return
+	}
+	writeJSON(response, http.StatusOK, dashboard)
+}
+
+type runDigestRequest struct {
+	Trigger string `json:"trigger"`
+}
+
+func (h *Handler) runDigest(response http.ResponseWriter, request *http.Request) {
+	var payload runDigestRequest
+	if err := decodeRequestJSON(response, request, &payload); err != nil {
+		writeAPIError(response, http.StatusBadRequest, "invalid_request", "Request must contain an optional trigger.")
+		return
+	}
+	digest, err := h.scheduledDigestService.Run(request.Context(), payload.Trigger)
+	if err != nil {
+		h.logger.Error("scheduled digest failed", "error", err)
+		writeAPIError(response, http.StatusBadGateway, "digest_run_error", "Scheduled business digest is temporarily unavailable.")
+		return
+	}
+	writeJSON(response, http.StatusCreated, digest)
 }
 
 type businessResearchRequest struct {

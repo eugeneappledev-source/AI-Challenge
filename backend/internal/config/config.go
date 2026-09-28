@@ -32,6 +32,8 @@ type Config struct {
 	UpstreamTimeout      time.Duration
 	AgentDBPath          string
 	MCPResearchURL       string
+	RadarCron            string
+	RadarTimezone        string
 }
 
 func Load() (Config, error) {
@@ -66,6 +68,8 @@ func Load() (Config, error) {
 		UpstreamTimeout:      upstreamTimeout,
 		AgentDBPath:          stringFromEnv("AGENT_DB_PATH", defaultAgentDBPath),
 		MCPResearchURL:       stringFromEnv("MCP_RESEARCH_URL", "http://127.0.0.1:"+stringFromEnv("SERVER_PORT", defaultServerPort)+"/mcp/research"),
+		RadarCron:            stringFromEnv("RADAR_CRON", "0 8 * * *"),
+		RadarTimezone:        stringFromEnv("RADAR_TIMEZONE", "UTC"),
 	}
 
 	if cfg.DeepSeekAPIKey == "" {
