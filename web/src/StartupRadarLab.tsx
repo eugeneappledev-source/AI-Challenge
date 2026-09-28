@@ -13,6 +13,10 @@ function StartupRadarLab({ day }: { day: RadarDay }) {
   if (day === "day-18") return <ScheduledDigestLab />;
   if (day === "day-19") return <ToolPipelineLab />;
   if (day === "day-20") return <MCPNetworkLab />;
+  return <MCPConnectionLab />;
+}
+
+function MCPConnectionLab() {
   const [result, setResult] = useState<MCPConnectionResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +45,7 @@ function StartupRadarLab({ day }: { day: RadarDay }) {
         <a className="radar-brand" href="#day-16"><span>SR</span> Startup Radar</a>
         <div className="radar-days">
           {[16, 17, 18, 19, 20].map((number) => (
-            <a key={number} className={day === `day-${number}` ? "active" : ""} href={`#day-${number}`}>День {number}</a>
+            <a key={number} className={number === 16 ? "active" : ""} href={`#day-${number}`}>День {number}</a>
           ))}
         </div>
         <a className="radar-github" href="https://github.com/eugeneappledev-source/AI-Challenge" target="_blank" rel="noreferrer">GitHub ↗</a>
