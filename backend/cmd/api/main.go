@@ -52,14 +52,16 @@ func main() {
 		Model:        "deepseek-flash", Temperature: 0.3, MaxOutputTokens: 1000,
 	}, llmClient, cfg.MaxMessageRunes).WithMemory(memoryStore)
 	newsClient := hackernews.NewClient(&http.Client{Timeout: 12 * time.Second})
-	researchMCP := mcpserver.NewResearchServer(newsClient)
+	newsSummarizer := application.NewLLMNewsSummarizer(llmClient)
+	researchMCP := mcpserver.NewResearchPipelineServer(newsClient, newsSummarizer, memoryStore)
 	mcpConnectionService := application.NewMCPConnectionService(cfg.MCPResearchURL)
 	businessResearchService := application.NewBusinessResearchService(llmClient, cfg.MCPResearchURL, cfg.MaxMessageRunes)
 	scheduledDigestService := application.NewScheduledDigestService(businessResearchService, memoryStore, cfg.RadarCron, cfg.RadarTimezone)
+	businessPipelineService := application.NewBusinessPipelineService(llmClient, cfg.MCPResearchURL)
 	handler := httptransport.NewHandler(chatService, reasoningService, temperatureService, modelBenchmarkService, logger, cfg.AppAccessToken, httptransport.RateLimitConfig{
 		PerMinute: cfg.RateLimitPerMinute,
 		PerDay:    cfg.DailyRequestLimit,
-	}).WithAgentService(agentService).WithMCPConnectionService(mcpConnectionService).WithBusinessResearchService(businessResearchService).WithScheduledDigestService(scheduledDigestService)
+	}).WithAgentService(agentService).WithMCPConnectionService(mcpConnectionService).WithBusinessResearchService(businessResearchService).WithScheduledDigestService(scheduledDigestService).WithBusinessPipelineService(businessPipelineService)
 	rootHandler := http.NewServeMux()
 	rootHandler.Handle("/mcp/research", mcpserver.StreamableHandler(researchMCP))
 	rootHandler.Handle("/", handler.Routes())

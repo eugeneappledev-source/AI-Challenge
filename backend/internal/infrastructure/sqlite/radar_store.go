@@ -51,3 +51,16 @@ func (s *ConversationStore) ListDigests(ctx context.Context, limit int) ([]domai
 	}
 	return digests, rows.Err()
 }
+
+func (s *ConversationStore) SaveRadarReport(ctx context.Context, report domain.RadarReport) error {
+	brief, err := json.Marshal(report.Brief)
+	if err != nil {
+		return fmt.Errorf("encode radar report: %w", err)
+	}
+	_, err = s.db.ExecContext(ctx, `INSERT INTO radar_reports(report_id, query_text, brief_json, source_count, created_at) VALUES(?, ?, ?, ?, ?)`,
+		report.ID, report.Query, string(brief), report.SourceCount, report.CreatedAt.UTC().Format(time.RFC3339Nano))
+	if err != nil {
+		return fmt.Errorf("save radar report: %w", err)
+	}
+	return nil
+}

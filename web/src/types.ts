@@ -320,3 +320,32 @@ export interface DigestDashboard {
   };
   digests: ScheduledDigest[];
 }
+
+export interface BusinessBrief {
+  summary: string;
+  keySignals: string[];
+  risks: string[];
+  nextQuestion: string;
+  model: string;
+  usage: Usage;
+}
+
+export interface RadarReport {
+  id: string;
+  query: string;
+  brief: BusinessBrief;
+  sourceCount: number;
+  createdAt: string;
+}
+
+export interface BusinessPipelineResult {
+  request: string;
+  plan: { tools: string[]; rationale: string };
+  stages: Array<{ order: number; server: string; tool: string; inputSummary: string; outputSummary: string; durationMs: number }>;
+  stories: BusinessStory[];
+  brief: BusinessBrief;
+  savedReport: RadarReport;
+  availableTools: MCPToolDescriptor[];
+  usage: Usage;
+  completedAt: string;
+}

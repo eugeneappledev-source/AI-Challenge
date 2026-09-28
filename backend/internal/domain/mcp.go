@@ -68,6 +68,49 @@ type DigestDashboard struct {
 	Digests  []ScheduledDigest `json:"digests"`
 }
 
+type BusinessBrief struct {
+	Summary      string   `json:"summary"`
+	KeySignals   []string `json:"keySignals"`
+	Risks        []string `json:"risks"`
+	NextQuestion string   `json:"nextQuestion"`
+	Model        string   `json:"model"`
+	Usage        Usage    `json:"usage"`
+}
+
+type RadarReport struct {
+	ID          string        `json:"id"`
+	Query       string        `json:"query"`
+	Brief       BusinessBrief `json:"brief"`
+	SourceCount int           `json:"sourceCount"`
+	CreatedAt   time.Time     `json:"createdAt"`
+}
+
+type PipelinePlan struct {
+	Tools     []string `json:"tools"`
+	Rationale string   `json:"rationale"`
+}
+
+type PipelineStage struct {
+	Order         int    `json:"order"`
+	Server        string `json:"server"`
+	Tool          string `json:"tool"`
+	InputSummary  string `json:"inputSummary"`
+	OutputSummary string `json:"outputSummary"`
+	DurationMS    int64  `json:"durationMs"`
+}
+
+type BusinessPipelineResult struct {
+	Request        string              `json:"request"`
+	Plan           PipelinePlan        `json:"plan"`
+	Stages         []PipelineStage     `json:"stages"`
+	Stories        []BusinessStory     `json:"stories"`
+	Brief          BusinessBrief       `json:"brief"`
+	SavedReport    RadarReport         `json:"savedReport"`
+	AvailableTools []MCPToolDescriptor `json:"availableTools"`
+	Usage          Usage               `json:"usage"`
+	CompletedAt    time.Time           `json:"completedAt"`
+}
+
 type MCPToolDescriptor struct {
 	Name        string         `json:"name"`
 	Title       string         `json:"title,omitempty"`

@@ -21,6 +21,7 @@ import type {
   BusinessResearchResult,
   DigestDashboard,
   ScheduledDigest,
+  BusinessPipelineResult,
 } from "./types";
 
 interface APIErrorPayload {
@@ -301,6 +302,15 @@ export async function runBusinessDigest(signal?: AbortSignal): Promise<Scheduled
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ trigger: "manual" }),
+    signal,
+  });
+}
+
+export async function runBusinessPipeline(request: string, signal?: AbortSignal): Promise<BusinessPipelineResult> {
+  return requestJSON<BusinessPipelineResult>("/web-api/radar/pipeline", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ request }),
     signal,
   });
 }

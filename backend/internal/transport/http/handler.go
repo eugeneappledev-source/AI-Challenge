@@ -50,6 +50,10 @@ type ScheduledDigestService interface {
 	Dashboard(ctx context.Context) (domain.DigestDashboard, error)
 }
 
+type BusinessPipelineService interface {
+	Run(ctx context.Context, request string) (domain.BusinessPipelineResult, error)
+}
+
 type AgentService interface {
 	Profile() domain.AgentProfile
 	Respond(ctx context.Context, input string) (domain.AgentExchange, error)
@@ -90,6 +94,7 @@ type Handler struct {
 	mcpConnectionService    MCPConnectionService
 	businessResearchService BusinessResearchService
 	scheduledDigestService  ScheduledDigestService
+	businessPipelineService BusinessPipelineService
 	logger                  *slog.Logger
 	appAccessToken          string
 	rateLimiter             *rateLimiter
@@ -112,6 +117,11 @@ func (h *Handler) WithBusinessResearchService(service BusinessResearchService) *
 
 func (h *Handler) WithScheduledDigestService(service ScheduledDigestService) *Handler {
 	h.scheduledDigestService = service
+	return h
+}
+
+func (h *Handler) WithBusinessPipelineService(service BusinessPipelineService) *Handler {
+	h.businessPipelineService = service
 	return h
 }
 
@@ -188,7 +198,29 @@ func (h *Handler) Routes() http.Handler {
 		mux.Handle("GET /v1/radar/digests", h.requireAccessToken(http.HandlerFunc(h.digestDashboard)))
 		mux.Handle("POST /v1/radar/digests/run", h.requireAccessToken(h.limitRequests(http.HandlerFunc(h.runDigest))))
 	}
+	if h.businessPipelineService != nil {
+		mux.Handle("POST /v1/radar/pipeline", h.requireAccessToken(h.limitRequests(http.HandlerFunc(h.businessPipeline))))
+	}
 	return h.logging(h.recoverPanic(mux))
+}
+
+func (h *Handler) businessPipeline(response http.ResponseWriter, request *http.Request) {
+	var payload businessResearchRequest
+	if err := decodeRequestJSON(response, request, &payload); err != nil {
+		writeAPIError(response, http.StatusBadRequest, "invalid_request", "Request must contain a research task.")
+		return
+	}
+	result, err := h.businessPipelineService.Run(request.Context(), payload.Request)
+	if err != nil {
+		if errors.Is(err, application.ErrEmptyResearchRequest) {
+			writeAPIError(response, http.StatusBadRequest, "empty_request", "Research task is required.")
+			return
+		}
+		h.logger.Error("business pipeline failed", "error", err)
+		writeAPIError(response, http.StatusBadGateway, "pipeline_error", "The MCP tool pipeline is temporarily unavailable.")
+		return
+	}
+	writeJSON(response, http.StatusOK, result)
 }
 
 func (h *Handler) digestDashboard(response http.ResponseWriter, request *http.Request) {

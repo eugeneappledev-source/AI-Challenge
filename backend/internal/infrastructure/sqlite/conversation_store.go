@@ -123,6 +123,15 @@ func (s *ConversationStore) migrate(ctx context.Context) error {
 		);
 		CREATE INDEX IF NOT EXISTS idx_radar_digests_created
 		ON radar_digests(created_at DESC);
+		CREATE TABLE IF NOT EXISTS radar_reports (
+			report_id TEXT PRIMARY KEY,
+			query_text TEXT NOT NULL,
+			brief_json TEXT NOT NULL,
+			source_count INTEGER NOT NULL,
+			created_at TEXT NOT NULL
+		);
+		CREATE INDEX IF NOT EXISTS idx_radar_reports_created
+		ON radar_reports(created_at DESC);
 	`)
 	if err != nil {
 		return fmt.Errorf("migrate agent database: %w", err)
