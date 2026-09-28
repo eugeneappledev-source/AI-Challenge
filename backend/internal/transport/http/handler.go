@@ -54,6 +54,10 @@ type BusinessPipelineService interface {
 	Run(ctx context.Context, request string) (domain.BusinessPipelineResult, error)
 }
 
+type BusinessNetworkService interface {
+	Run(ctx context.Context, request string, profile domain.FounderProfile) (domain.MultiServerResult, error)
+}
+
 type AgentService interface {
 	Profile() domain.AgentProfile
 	Respond(ctx context.Context, input string) (domain.AgentExchange, error)
@@ -95,6 +99,7 @@ type Handler struct {
 	businessResearchService BusinessResearchService
 	scheduledDigestService  ScheduledDigestService
 	businessPipelineService BusinessPipelineService
+	businessNetworkService  BusinessNetworkService
 	logger                  *slog.Logger
 	appAccessToken          string
 	rateLimiter             *rateLimiter
@@ -122,6 +127,11 @@ func (h *Handler) WithScheduledDigestService(service ScheduledDigestService) *Ha
 
 func (h *Handler) WithBusinessPipelineService(service BusinessPipelineService) *Handler {
 	h.businessPipelineService = service
+	return h
+}
+
+func (h *Handler) WithBusinessNetworkService(service BusinessNetworkService) *Handler {
+	h.businessNetworkService = service
 	return h
 }
 
@@ -201,7 +211,34 @@ func (h *Handler) Routes() http.Handler {
 	if h.businessPipelineService != nil {
 		mux.Handle("POST /v1/radar/pipeline", h.requireAccessToken(h.limitRequests(http.HandlerFunc(h.businessPipeline))))
 	}
+	if h.businessNetworkService != nil {
+		mux.Handle("POST /v1/radar/network", h.requireAccessToken(h.limitRequests(http.HandlerFunc(h.businessNetwork))))
+	}
 	return h.logging(h.recoverPanic(mux))
+}
+
+type businessNetworkRequest struct {
+	Request string                `json:"request"`
+	Profile domain.FounderProfile `json:"profile"`
+}
+
+func (h *Handler) businessNetwork(response http.ResponseWriter, request *http.Request) {
+	var payload businessNetworkRequest
+	if err := decodeRequestJSON(response, request, &payload); err != nil {
+		writeAPIError(response, http.StatusBadRequest, "invalid_request", "Request and founder profile are required.")
+		return
+	}
+	result, err := h.businessNetworkService.Run(request.Context(), payload.Request, payload.Profile)
+	if err != nil {
+		if errors.Is(err, application.ErrEmptyResearchRequest) {
+			writeAPIError(response, http.StatusBadRequest, "empty_request", "Research task is required.")
+			return
+		}
+		h.logger.Error("multi-server orchestration failed", "error", err)
+		writeAPIError(response, http.StatusBadGateway, "network_error", "The MCP server network is temporarily unavailable.")
+		return
+	}
+	writeJSON(response, http.StatusOK, result)
 }
 
 func (h *Handler) businessPipeline(response http.ResponseWriter, request *http.Request) {

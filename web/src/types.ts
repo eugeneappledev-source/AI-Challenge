@@ -349,3 +349,25 @@ export interface BusinessPipelineResult {
   usage: Usage;
   completedAt: string;
 }
+
+export interface FounderProfile {
+  budgetUsd: number;
+  hoursPerWeek: number;
+  skills: string[];
+  riskLevel: string;
+}
+
+export interface MultiServerResult {
+  request: string;
+  profile: FounderProfile;
+  route: Array<{ order: number; server: string; tool: string; inputSummary: string; outputSummary: string; durationMs: number }>;
+  servers: Array<{ name: string; tools: MCPToolDescriptor[] }>;
+  stories: BusinessStory[];
+  brief: BusinessBrief;
+  scores: { items: Array<{ title: string; evidence: string; fitScore: number; effort: string; rationale: string; risk: string }>; model: string; usage: Usage };
+  actionPlan: { selectedTitle: string; goal: string; steps: string[]; stopConditions: string[]; budgetNote: string; model: string; usage: Usage };
+  savedReport: RadarReport;
+  rationale: string;
+  usage: Usage;
+  completedAt: string;
+}

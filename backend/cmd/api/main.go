@@ -54,16 +54,20 @@ func main() {
 	newsClient := hackernews.NewClient(&http.Client{Timeout: 12 * time.Second})
 	newsSummarizer := application.NewLLMNewsSummarizer(llmClient)
 	researchMCP := mcpserver.NewResearchPipelineServer(newsClient, newsSummarizer, memoryStore)
+	opportunityAdvisor := application.NewLLMOpportunityAdvisor(llmClient)
+	advisorMCP := mcpserver.NewAdvisorServer(opportunityAdvisor)
 	mcpConnectionService := application.NewMCPConnectionService(cfg.MCPResearchURL)
 	businessResearchService := application.NewBusinessResearchService(llmClient, cfg.MCPResearchURL, cfg.MaxMessageRunes)
 	scheduledDigestService := application.NewScheduledDigestService(businessResearchService, memoryStore, cfg.RadarCron, cfg.RadarTimezone)
 	businessPipelineService := application.NewBusinessPipelineService(llmClient, cfg.MCPResearchURL)
+	businessNetworkService := application.NewBusinessNetworkService(llmClient, cfg.MCPResearchURL, cfg.MCPAdvisorURL)
 	handler := httptransport.NewHandler(chatService, reasoningService, temperatureService, modelBenchmarkService, logger, cfg.AppAccessToken, httptransport.RateLimitConfig{
 		PerMinute: cfg.RateLimitPerMinute,
 		PerDay:    cfg.DailyRequestLimit,
-	}).WithAgentService(agentService).WithMCPConnectionService(mcpConnectionService).WithBusinessResearchService(businessResearchService).WithScheduledDigestService(scheduledDigestService).WithBusinessPipelineService(businessPipelineService)
+	}).WithAgentService(agentService).WithMCPConnectionService(mcpConnectionService).WithBusinessResearchService(businessResearchService).WithScheduledDigestService(scheduledDigestService).WithBusinessPipelineService(businessPipelineService).WithBusinessNetworkService(businessNetworkService)
 	rootHandler := http.NewServeMux()
 	rootHandler.Handle("/mcp/research", mcpserver.StreamableHandler(researchMCP))
+	rootHandler.Handle("/mcp/advisor", mcpserver.StreamableHandler(advisorMCP))
 	rootHandler.Handle("/", handler.Routes())
 
 	server := &http.Server{

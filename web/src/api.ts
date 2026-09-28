@@ -22,6 +22,8 @@ import type {
   DigestDashboard,
   ScheduledDigest,
   BusinessPipelineResult,
+  FounderProfile,
+  MultiServerResult,
 } from "./types";
 
 interface APIErrorPayload {
@@ -311,6 +313,15 @@ export async function runBusinessPipeline(request: string, signal?: AbortSignal)
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ request }),
+    signal,
+  });
+}
+
+export async function runMCPNetwork(request: string, profile: FounderProfile, signal?: AbortSignal): Promise<MultiServerResult> {
+  return requestJSON<MultiServerResult>("/web-api/radar/network", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ request, profile }),
     signal,
   });
 }

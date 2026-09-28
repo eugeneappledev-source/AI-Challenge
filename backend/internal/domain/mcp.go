@@ -111,6 +111,58 @@ type BusinessPipelineResult struct {
 	CompletedAt    time.Time           `json:"completedAt"`
 }
 
+type FounderProfile struct {
+	BudgetUSD    int      `json:"budgetUsd"`
+	HoursPerWeek int      `json:"hoursPerWeek"`
+	Skills       []string `json:"skills"`
+	RiskLevel    string   `json:"riskLevel"`
+}
+
+type ScoredOpportunity struct {
+	Title     string `json:"title"`
+	Evidence  string `json:"evidence"`
+	FitScore  int    `json:"fitScore"`
+	Effort    string `json:"effort"`
+	Rationale string `json:"rationale"`
+	Risk      string `json:"risk"`
+}
+
+type OpportunityScores struct {
+	Items []ScoredOpportunity `json:"items"`
+	Model string              `json:"model"`
+	Usage Usage               `json:"usage"`
+}
+
+type FounderActionPlan struct {
+	SelectedTitle  string   `json:"selectedTitle"`
+	Goal           string   `json:"goal"`
+	Steps          []string `json:"steps"`
+	StopConditions []string `json:"stopConditions"`
+	BudgetNote     string   `json:"budgetNote"`
+	Model          string   `json:"model"`
+	Usage          Usage    `json:"usage"`
+}
+
+type MCPServerSnapshot struct {
+	Name  string              `json:"name"`
+	Tools []MCPToolDescriptor `json:"tools"`
+}
+
+type MultiServerResult struct {
+	Request     string              `json:"request"`
+	Profile     FounderProfile      `json:"profile"`
+	Route       []PipelineStage     `json:"route"`
+	Servers     []MCPServerSnapshot `json:"servers"`
+	Stories     []BusinessStory     `json:"stories"`
+	Brief       BusinessBrief       `json:"brief"`
+	Scores      OpportunityScores   `json:"scores"`
+	ActionPlan  FounderActionPlan   `json:"actionPlan"`
+	SavedReport RadarReport         `json:"savedReport"`
+	Rationale   string              `json:"rationale"`
+	Usage       Usage               `json:"usage"`
+	CompletedAt time.Time           `json:"completedAt"`
+}
+
 type MCPToolDescriptor struct {
 	Name        string         `json:"name"`
 	Title       string         `json:"title,omitempty"`

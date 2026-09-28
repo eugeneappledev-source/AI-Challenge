@@ -32,6 +32,7 @@ type Config struct {
 	UpstreamTimeout      time.Duration
 	AgentDBPath          string
 	MCPResearchURL       string
+	MCPAdvisorURL        string
 	RadarCron            string
 	RadarTimezone        string
 }
@@ -68,6 +69,7 @@ func Load() (Config, error) {
 		UpstreamTimeout:      upstreamTimeout,
 		AgentDBPath:          stringFromEnv("AGENT_DB_PATH", defaultAgentDBPath),
 		MCPResearchURL:       stringFromEnv("MCP_RESEARCH_URL", "http://127.0.0.1:"+stringFromEnv("SERVER_PORT", defaultServerPort)+"/mcp/research"),
+		MCPAdvisorURL:        stringFromEnv("MCP_ADVISOR_URL", "http://127.0.0.1:"+stringFromEnv("SERVER_PORT", defaultServerPort)+"/mcp/advisor"),
 		RadarCron:            stringFromEnv("RADAR_CRON", "0 8 * * *"),
 		RadarTimezone:        stringFromEnv("RADAR_TIMEZONE", "UTC"),
 	}

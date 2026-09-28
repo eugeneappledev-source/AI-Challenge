@@ -40,6 +40,7 @@
 | [17](day-17/README.md) | Первый MCP-инструмент | Agent routing, Hacker News API и structured result | ✅ |
 | [18](day-18/README.md) | Автоматический запуск | Cron-контейнер, Agent + MCP и SQLite persistence | ✅ |
 | [19](day-19/README.md) | Цепочка инструментов | Один MCP server, автоматический plan и data handoff | ✅ |
+| [20](day-20/README.md) | Несколько MCP-серверов | Research + Advisor, routing и cross-server handoff | ✅ |
 
 ## Как читать дневник
 
