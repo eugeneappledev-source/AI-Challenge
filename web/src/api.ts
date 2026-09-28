@@ -17,6 +17,7 @@ import type {
   ControlledTransitionExchange,
   TaskLifecycleGraph,
   TaskPhase,
+  MCPConnectionResult,
 } from "./types";
 
 interface APIErrorPayload {
@@ -273,4 +274,8 @@ export async function transitionTask(
     body: JSON.stringify({ taskId, target, reason }),
     signal,
   });
+}
+
+export async function inspectMCPConnection(signal?: AbortSignal): Promise<MCPConnectionResult> {
+  return requestJSON<MCPConnectionResult>("/web-api/radar/connection", { signal });
 }

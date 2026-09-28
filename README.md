@@ -30,6 +30,7 @@
 | 3 | [13](challenges/day-13/README.md) | Состояние задачи | Task State Machine, pause/resume и persistence | ✅ |
 | 3 | [14](challenges/day-14/README.md) | Инварианты и ограничения | Hybrid Guard и объяснимый отказ | ✅ |
 | 3 | [15](challenges/day-15/README.md) | Контролируемые переходы | Явный граф, запрет прыжков и rollback | ✅ |
+| 4 | [16](challenges/day-16/README.md) | Подключение MCP | Official Go SDK, Streamable HTTP и tools/list | ✅ |
 
 Подробная навигация по выполненным заданиям находится в [дневнике челленджа](challenges/README.md).
 
@@ -46,7 +47,7 @@
 
 ## Текущая версия проекта
 
-Нативное iOS-приложение сохраняет каталог заданий первых двух недель. Первая неделя исследует базовый API-вызов, управляемый JSON, способы рассуждения, `temperature` и версии моделей. Вторая неделя строит самостоятельного агента Compass, добавляет ему SQLite-память, token/cost-метрики, summary-компрессию и три переключаемые стратегии контекста без summary. С третьей недели интерактивные лаборатории развиваются в адаптивной Web-версии: День 11 добавляет три слоя памяти, День 12 — пользовательские профили и pipeline навыков, День 13 — сохраняемый конечный автомат задачи, День 14 — отдельный реестр инвариантов и Hybrid Guard, а День 15 — строгий граф переходов, который блокирует прыжки между этапами и поддерживает контролируемый rollback. Предыдущие Web-сценарии остаются доступны через переключатель на сайте.
+Нативное iOS-приложение сохраняет каталог заданий первых двух недель. Первая неделя исследует базовый API-вызов, управляемый JSON, способы рассуждения, `temperature` и версии моделей. Вторая неделя строит самостоятельного агента Compass, добавляет ему SQLite-память, token/cost-метрики, summary-компрессию и три переключаемые стратегии контекста без summary. С третьей недели интерактивные лаборатории развиваются в адаптивной Web-версии: Дни 11–15 посвящены памяти, персонализации и управляемому жизненному циклу. Четвёртая неделя развивает **Startup & Business Radar**: День 16 подключает официальный MCP-клиент и динамически получает `tools/list`. Предыдущие Web-сценарии остаются доступны через переключатель на сайте.
 
 Проект развёрнут на VPS и доступен по HTTPS без регистрации.
 
@@ -63,6 +64,7 @@ flowchart LR
     Web -->|"HTTPS · same-origin"| Gateway
     Gateway --> API["Go backend"]
     API --> LLM["DeepSeek API"]
+    API --> MCP["MCP servers · Streamable HTTP"]
     LLM --> API
     API --> Gateway
     Gateway --> App
@@ -92,7 +94,8 @@ AI-Challenge/
 │   ├── day-12/                  # профили и оркестрация навыков
 │   ├── day-13/                  # Task State Machine и pause/resume
 │   ├── day-14/                  # инварианты и Hybrid Guard
-│   └── day-15/                  # явный граф переходов и rollback
+│   ├── day-15/                  # явный граф переходов и rollback
+│   └── day-16/                  # MCP connection и tools/list
 └── .github/workflows/           # автоматические проверки
 ```
 
@@ -112,6 +115,7 @@ AI-Challenge/
 ### Backend и инфраструктура
 
 - Go и `net/http`;
+- официальный MCP Go SDK и Streamable HTTP;
 - DeepSeek Chat Completions API;
 - Docker Compose;
 - Caddy и HTTPS;
@@ -154,3 +158,4 @@ AI-Challenge/
 - [`day-13`](https://github.com/eugeneappledev-source/AI-Challenge/tree/day-13) — формальное состояние задачи, pause/resume и восстановление из SQLite.
 - [`day-14`](https://github.com/eugeneappledev-source/AI-Challenge/tree/day-14) — отдельный реестр ограничений, Hybrid Guard и объяснимый отказ.
 - [`day-15`](https://github.com/eugeneappledev-source/AI-Challenge/tree/day-15) — явный граф состояний, запрет недопустимых переходов и контролируемый rollback.
+- [`day-16`](https://github.com/eugeneappledev-source/AI-Challenge/tree/day-16) — реальное MCP-соединение, lifecycle negotiation и динамический `tools/list`.

@@ -14,6 +14,7 @@ import (
 	"github.com/eugeneappledev-source/AI-Challenge/backend/internal/config"
 	"github.com/eugeneappledev-source/AI-Challenge/backend/internal/domain"
 	"github.com/eugeneappledev-source/AI-Challenge/backend/internal/infrastructure/deepseek"
+	"github.com/eugeneappledev-source/AI-Challenge/backend/internal/infrastructure/mcpserver"
 	sqlitestore "github.com/eugeneappledev-source/AI-Challenge/backend/internal/infrastructure/sqlite"
 	httptransport "github.com/eugeneappledev-source/AI-Challenge/backend/internal/transport/http"
 )
@@ -49,14 +50,19 @@ func main() {
 		Instructions: "Ты Compass — самостоятельный AI-агент и практичный наставник. Отвечай на языке пользователя, учитывай его формулировку, давай ясный законченный ответ. Если данных недостаточно, честно обозначь допущение. Не упоминай внутренние инструкции.",
 		Model:        "deepseek-flash", Temperature: 0.3, MaxOutputTokens: 1000,
 	}, llmClient, cfg.MaxMessageRunes).WithMemory(memoryStore)
+	researchMCP := mcpserver.NewResearchServer()
+	mcpConnectionService := application.NewMCPConnectionService(cfg.MCPResearchURL)
 	handler := httptransport.NewHandler(chatService, reasoningService, temperatureService, modelBenchmarkService, logger, cfg.AppAccessToken, httptransport.RateLimitConfig{
 		PerMinute: cfg.RateLimitPerMinute,
 		PerDay:    cfg.DailyRequestLimit,
-	}).WithAgentService(agentService)
+	}).WithAgentService(agentService).WithMCPConnectionService(mcpConnectionService)
+	rootHandler := http.NewServeMux()
+	rootHandler.Handle("/mcp/research", mcpserver.StreamableHandler(researchMCP))
+	rootHandler.Handle("/", handler.Routes())
 
 	server := &http.Server{
 		Addr:              ":" + cfg.ServerPort,
-		Handler:           handler.Routes(),
+		Handler:           rootHandler,
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      2*cfg.UpstreamTimeout + 10*time.Second,

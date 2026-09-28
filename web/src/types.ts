@@ -242,3 +242,23 @@ export interface InvariantExchange {
   usage: Usage;
   trace: string[];
 }
+
+export interface MCPToolDescriptor {
+  name: string;
+  title?: string;
+  description: string;
+  inputSchema: Record<string, unknown>;
+}
+
+export interface MCPConnectionResult {
+  connected: boolean;
+  transport: string;
+  endpoint: string;
+  clientName: string;
+  serverName: string;
+  serverVersion: string;
+  protocolVersion: string;
+  tools: MCPToolDescriptor[];
+  trace: string[];
+  checkedAt: string;
+}

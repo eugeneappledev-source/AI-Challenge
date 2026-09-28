@@ -12,6 +12,9 @@ import ProfileLab from "./ProfileLab";
 import TaskStateLab from "./TaskStateLab";
 import InvariantLab from "./InvariantLab";
 import ControlledLifecycleLab from "./ControlledLifecycleLab";
+import StartupRadarLab from "./StartupRadarLab";
+
+type ActiveDay = "day-02" | "day-11" | "day-12" | "day-13" | "day-14" | "day-15" | "day-16" | "day-17" | "day-18" | "day-19" | "day-20";
 
 const suggestions = [
   "Дай простой рецепт греческого салата.",
@@ -20,7 +23,7 @@ const suggestions = [
 ];
 
 function App() {
-  const [activeDay, setActiveDay] = useState<"day-02" | "day-11" | "day-12" | "day-13" | "day-14" | "day-15">(() => readActiveDay());
+  const [activeDay, setActiveDay] = useState<ActiveDay>(() => readActiveDay());
   const [message, setMessage] = useState("");
   const [comparison, setComparison] = useState<Comparison | null>(null);
   const [selectedMode, setSelectedMode] =
@@ -93,6 +96,9 @@ function App() {
   }
   if (activeDay === "day-15") {
     return <ControlledLifecycleLab />;
+  }
+  if (["day-16", "day-17", "day-18", "day-19", "day-20"].includes(activeDay)) {
+    return <StartupRadarLab day={activeDay as "day-16" | "day-17" | "day-18" | "day-19" | "day-20"} />;
   }
 
   return (
@@ -390,11 +396,15 @@ function LoadingComparison() {
 
 export default App;
 
-function readActiveDay(): "day-02" | "day-11" | "day-12" | "day-13" | "day-14" | "day-15" {
+function readActiveDay(): ActiveDay {
   if (window.location.hash === "#day-02") return "day-02";
   if (window.location.hash === "#day-11") return "day-11";
   if (window.location.hash === "#day-12") return "day-12";
   if (window.location.hash === "#day-13") return "day-13";
   if (window.location.hash === "#day-14") return "day-14";
-  return "day-15";
+  if (window.location.hash === "#day-15") return "day-15";
+  if (["#day-16", "#day-17", "#day-18", "#day-19", "#day-20"].includes(window.location.hash)) {
+    return window.location.hash.slice(1) as ActiveDay;
+  }
+  return "day-16";
 }

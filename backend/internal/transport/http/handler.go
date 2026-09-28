@@ -37,6 +37,10 @@ type ModelBenchmarkService interface {
 	Review(ctx context.Context, prompt string, attempts []domain.ModelBenchmarkAttempt) (domain.ModelBenchmarkReview, error)
 }
 
+type MCPConnectionService interface {
+	Inspect(ctx context.Context) (domain.MCPConnectionResult, error)
+}
+
 type AgentService interface {
 	Profile() domain.AgentProfile
 	Respond(ctx context.Context, input string) (domain.AgentExchange, error)
@@ -74,6 +78,7 @@ type Handler struct {
 	temperatureService    TemperatureService
 	modelBenchmarkService ModelBenchmarkService
 	agentService          AgentService
+	mcpConnectionService  MCPConnectionService
 	logger                *slog.Logger
 	appAccessToken        string
 	rateLimiter           *rateLimiter
@@ -81,6 +86,11 @@ type Handler struct {
 
 func (h *Handler) WithAgentService(service AgentService) *Handler {
 	h.agentService = service
+	return h
+}
+
+func (h *Handler) WithMCPConnectionService(service MCPConnectionService) *Handler {
+	h.mcpConnectionService = service
 	return h
 }
 
@@ -147,7 +157,20 @@ func (h *Handler) Routes() http.Handler {
 		mux.Handle("GET /v1/agent/invariants", h.requireAccessToken(http.HandlerFunc(h.invariants)))
 		mux.Handle("POST /v1/agent/invariants/check", h.requireAccessToken(h.limitRequests(http.HandlerFunc(h.checkInvariants))))
 	}
+	if h.mcpConnectionService != nil {
+		mux.Handle("GET /v1/radar/connection", h.requireAccessToken(http.HandlerFunc(h.mcpConnection)))
+	}
 	return h.logging(h.recoverPanic(mux))
+}
+
+func (h *Handler) mcpConnection(response http.ResponseWriter, request *http.Request) {
+	result, err := h.mcpConnectionService.Inspect(request.Context())
+	if err != nil {
+		h.logger.Error("MCP inspection failed", "error", err)
+		writeAPIError(response, http.StatusBadGateway, "mcp_connection_error", "MCP server is temporarily unavailable.")
+		return
+	}
+	writeJSON(response, http.StatusOK, result)
 }
 
 func (h *Handler) invariants(response http.ResponseWriter, request *http.Request) {

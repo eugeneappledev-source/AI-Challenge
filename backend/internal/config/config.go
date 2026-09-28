@@ -31,6 +31,7 @@ type Config struct {
 	DailyRequestLimit    int
 	UpstreamTimeout      time.Duration
 	AgentDBPath          string
+	MCPResearchURL       string
 }
 
 func Load() (Config, error) {
@@ -64,6 +65,7 @@ func Load() (Config, error) {
 		DailyRequestLimit:    dailyRequestLimit,
 		UpstreamTimeout:      upstreamTimeout,
 		AgentDBPath:          stringFromEnv("AGENT_DB_PATH", defaultAgentDBPath),
+		MCPResearchURL:       stringFromEnv("MCP_RESEARCH_URL", "http://127.0.0.1:"+stringFromEnv("SERVER_PORT", defaultServerPort)+"/mcp/research"),
 	}
 
 	if cfg.DeepSeekAPIKey == "" {
