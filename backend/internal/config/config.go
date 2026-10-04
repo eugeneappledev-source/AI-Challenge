@@ -35,6 +35,7 @@ type Config struct {
 	MCPAdvisorURL        string
 	RadarCron            string
 	RadarTimezone        string
+	RAGCorpusPath        string
 }
 
 func Load() (Config, error) {
@@ -72,6 +73,7 @@ func Load() (Config, error) {
 		MCPAdvisorURL:        stringFromEnv("MCP_ADVISOR_URL", "http://127.0.0.1:"+stringFromEnv("SERVER_PORT", defaultServerPort)+"/mcp/advisor"),
 		RadarCron:            stringFromEnv("RADAR_CRON", "0 8 * * *"),
 		RadarTimezone:        stringFromEnv("RADAR_TIMEZONE", "UTC"),
+		RAGCorpusPath:        stringFromEnv("RAG_CORPUS_PATH", ".."),
 	}
 
 	if cfg.DeepSeekAPIKey == "" {

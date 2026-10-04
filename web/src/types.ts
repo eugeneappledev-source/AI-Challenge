@@ -371,3 +371,31 @@ export interface MultiServerResult {
   usage: Usage;
   completedAt: string;
 }
+
+export interface KnowledgeChunk {
+  chunkId: string;
+  strategy: "fixed" | "structural";
+  source: string;
+  title: string;
+  section: string;
+  content: string;
+  dimensions: number;
+  charCount: number;
+  createdAt: string;
+}
+
+export interface KnowledgeIndexStatus {
+  corpusPath: string;
+  pagesEquivalent: number;
+  builtAt?: string;
+  strategies: Array<{
+    strategy: "fixed" | "structural";
+    documents: number;
+    chunks: number;
+    averageChars: number;
+    embeddingModel: string;
+    dimensions: number;
+    durationMs: number;
+    samples: KnowledgeChunk[];
+  }>;
+}

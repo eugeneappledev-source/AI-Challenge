@@ -18,8 +18,13 @@ services:
       - "8080"
     environment:
       AGENT_DB_PATH: /data/agent.db
+      RAG_CORPUS_PATH: /workspace
     volumes:
       - agent_data:/data
+      - ../README.md:/workspace/README.md:ro
+      - ../challenges:/workspace/challenges:ro
+      - ../backend:/workspace/backend:ro
+      - ../web/src:/workspace/web/src:ro
     depends_on:
       agent-data-init:
         condition: service_completed_successfully

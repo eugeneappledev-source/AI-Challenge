@@ -13,8 +13,9 @@ import TaskStateLab from "./TaskStateLab";
 import InvariantLab from "./InvariantLab";
 import ControlledLifecycleLab from "./ControlledLifecycleLab";
 import StartupRadarLab from "./StartupRadarLab";
+import KnowledgeLab from "./KnowledgeLab";
 
-type ActiveDay = "day-02" | "day-11" | "day-12" | "day-13" | "day-14" | "day-15" | "day-16" | "day-17" | "day-18" | "day-19" | "day-20";
+type ActiveDay = "day-02" | "day-11" | "day-12" | "day-13" | "day-14" | "day-15" | "day-16" | "day-17" | "day-18" | "day-19" | "day-20" | "day-21" | "day-22" | "day-23" | "day-24" | "day-25";
 
 const suggestions = [
   "Дай простой рецепт греческого салата.",
@@ -99,6 +100,9 @@ function App() {
   }
   if (["day-16", "day-17", "day-18", "day-19", "day-20"].includes(activeDay)) {
     return <StartupRadarLab day={activeDay as "day-16" | "day-17" | "day-18" | "day-19" | "day-20"} />;
+  }
+  if (["day-21", "day-22", "day-23", "day-24", "day-25"].includes(activeDay)) {
+    return <KnowledgeLab day={activeDay as "day-21"|"day-22"|"day-23"|"day-24"|"day-25"}/>;
   }
 
   return (
@@ -403,7 +407,7 @@ function readActiveDay(): ActiveDay {
   if (window.location.hash === "#day-13") return "day-13";
   if (window.location.hash === "#day-14") return "day-14";
   if (window.location.hash === "#day-15") return "day-15";
-  if (["#day-16", "#day-17", "#day-18", "#day-19", "#day-20"].includes(window.location.hash)) {
+  if (["#day-16", "#day-17", "#day-18", "#day-19", "#day-20", "#day-21", "#day-22", "#day-23", "#day-24", "#day-25"].includes(window.location.hash)) {
     return window.location.hash.slice(1) as ActiveDay;
   }
   return "day-16";

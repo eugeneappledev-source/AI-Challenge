@@ -24,6 +24,7 @@ import type {
   BusinessPipelineResult,
   FounderProfile,
   MultiServerResult,
+  KnowledgeIndexStatus,
 } from "./types";
 
 interface APIErrorPayload {
@@ -324,4 +325,12 @@ export async function runMCPNetwork(request: string, profile: FounderProfile, si
     body: JSON.stringify({ request, profile }),
     signal,
   });
+}
+
+export async function loadKnowledgeIndex(signal?: AbortSignal): Promise<KnowledgeIndexStatus> {
+  return requestJSON<KnowledgeIndexStatus>("/web-api/knowledge/index", { signal });
+}
+
+export async function buildKnowledgeIndex(signal?: AbortSignal): Promise<KnowledgeIndexStatus> {
+  return requestJSON<KnowledgeIndexStatus>("/web-api/knowledge/index", { method: "POST", signal });
 }

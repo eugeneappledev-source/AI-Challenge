@@ -58,6 +58,11 @@ type BusinessNetworkService interface {
 	Run(ctx context.Context, request string, profile domain.FounderProfile) (domain.MultiServerResult, error)
 }
 
+type KnowledgeIndexService interface {
+	Status(context.Context) (domain.KnowledgeIndexStatus, error)
+	Build(context.Context) (domain.KnowledgeIndexStatus, error)
+}
+
 type AgentService interface {
 	Profile() domain.AgentProfile
 	Respond(ctx context.Context, input string) (domain.AgentExchange, error)
@@ -100,6 +105,7 @@ type Handler struct {
 	scheduledDigestService  ScheduledDigestService
 	businessPipelineService BusinessPipelineService
 	businessNetworkService  BusinessNetworkService
+	knowledgeIndexService   KnowledgeIndexService
 	logger                  *slog.Logger
 	appAccessToken          string
 	rateLimiter             *rateLimiter
@@ -132,6 +138,11 @@ func (h *Handler) WithBusinessPipelineService(service BusinessPipelineService) *
 
 func (h *Handler) WithBusinessNetworkService(service BusinessNetworkService) *Handler {
 	h.businessNetworkService = service
+	return h
+}
+
+func (h *Handler) WithKnowledgeIndexService(service KnowledgeIndexService) *Handler {
+	h.knowledgeIndexService = service
 	return h
 }
 
@@ -214,7 +225,31 @@ func (h *Handler) Routes() http.Handler {
 	if h.businessNetworkService != nil {
 		mux.Handle("POST /v1/radar/network", h.requireAccessToken(h.limitRequests(http.HandlerFunc(h.businessNetwork))))
 	}
+	if h.knowledgeIndexService != nil {
+		mux.Handle("GET /v1/knowledge/index", h.requireAccessToken(http.HandlerFunc(h.knowledgeIndexStatus)))
+		mux.Handle("POST /v1/knowledge/index", h.requireAccessToken(http.HandlerFunc(h.buildKnowledgeIndex)))
+	}
 	return h.logging(h.recoverPanic(mux))
+}
+
+func (h *Handler) knowledgeIndexStatus(response http.ResponseWriter, request *http.Request) {
+	status, err := h.knowledgeIndexService.Status(request.Context())
+	if err != nil {
+		h.logger.Error("knowledge index status failed", "error", err)
+		writeAPIError(response, http.StatusInternalServerError, "index_status_error", "Knowledge index status is unavailable.")
+		return
+	}
+	writeJSON(response, http.StatusOK, status)
+}
+
+func (h *Handler) buildKnowledgeIndex(response http.ResponseWriter, request *http.Request) {
+	status, err := h.knowledgeIndexService.Build(request.Context())
+	if err != nil {
+		h.logger.Error("knowledge indexing failed", "error", err)
+		writeAPIError(response, http.StatusInternalServerError, "index_build_error", "Knowledge indexing failed.")
+		return
+	}
+	writeJSON(response, http.StatusOK, status)
 }
 
 type businessNetworkRequest struct {
