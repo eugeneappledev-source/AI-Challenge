@@ -74,18 +74,9 @@ func (s *RAGService) Compare(ctx context.Context, question string) (domain.RAGCo
 }
 
 func (s *RAGService) Retrieve(ctx context.Context, question string, topK int) ([]domain.RetrievedChunk, error) {
-	chunks, err := s.store.LoadKnowledgeChunks(ctx, domain.ChunkStrategyStructural)
+	chunks, err := s.loadChunks(ctx)
 	if err != nil {
 		return nil, err
-	}
-	if len(chunks) == 0 {
-		if _, err := s.indexer.Build(ctx); err != nil {
-			return nil, fmt.Errorf("build missing knowledge index: %w", err)
-		}
-		chunks, err = s.store.LoadKnowledgeChunks(ctx, domain.ChunkStrategyStructural)
-		if err != nil {
-			return nil, err
-		}
 	}
 	queryVector := embedText(question)
 	results := make([]domain.RetrievedChunk, 0, len(chunks))
@@ -100,6 +91,99 @@ func (s *RAGService) Retrieve(ctx context.Context, question string, topK int) ([
 		topK = len(results)
 	}
 	return results[:topK], nil
+}
+
+func (s *RAGService) CompareRetrieval(ctx context.Context, question string, topK int, threshold float64) (domain.RetrievalComparison, error) {
+	started := time.Now()
+	normalized, err := s.validateQuestion(question)
+	if err != nil {
+		return domain.RetrievalComparison{}, err
+	}
+	if topK < 1 {
+		topK = 1
+	}
+	if topK > 10 {
+		topK = 10
+	}
+	if threshold < 0 {
+		threshold = 0
+	}
+	if threshold > 1 {
+		threshold = 1
+	}
+	baseline, err := s.Retrieve(ctx, normalized, topK)
+	if err != nil {
+		return domain.RetrievalComparison{}, err
+	}
+	temperature := 0.0
+	rewrite, err := s.client.Generate(ctx, domain.ModelRequest{SystemPrompt: `Переформулируй вопрос в один точный поисковый запрос для локального индекса репозитория. Добавь вероятные технические термины и имена файлов, но не отвечай на вопрос. Верни только запрос одной строкой без кавычек.`, UserPrompt: normalized, Temperature: &temperature, MaxTokens: 120})
+	if err != nil {
+		return domain.RetrievalComparison{}, fmt.Errorf("rewrite retrieval query: %w", err)
+	}
+	rewritten := strings.TrimSpace(rewrite.Content)
+	if rewritten == "" {
+		rewritten = normalized
+	}
+	candidateCount := topK * 4
+	if candidateCount < 12 {
+		candidateCount = 12
+	}
+	candidates, err := s.Retrieve(ctx, rewritten, candidateCount)
+	if err != nil {
+		return domain.RetrievalComparison{}, err
+	}
+	queryTokens := tokenSet(normalized + " " + rewritten)
+	for index := range candidates {
+		chunk := &candidates[index]
+		chunk.LexicalScore = lexicalOverlap(queryTokens, tokenSet(chunk.Chunk.Source+" "+chunk.Chunk.Section+" "+chunk.Chunk.Content))
+		metadata := 0.0
+		if lexicalOverlap(queryTokens, tokenSet(chunk.Chunk.Source+" "+chunk.Chunk.Section)) > 0 {
+			metadata = 1
+		}
+		chunk.RerankScore = .72*chunk.SimilarityScore + .23*chunk.LexicalScore + .05*metadata
+	}
+	sort.SliceStable(candidates, func(i, j int) bool { return candidates[i].RerankScore > candidates[j].RerankScore })
+	improved := make([]domain.RetrievedChunk, 0, topK)
+	for _, item := range candidates {
+		if item.RerankScore >= threshold && len(improved) < topK {
+			improved = append(improved, item)
+		}
+	}
+	return domain.RetrievalComparison{Question: normalized, RewrittenQuery: rewritten, TopK: topK, Threshold: threshold, Baseline: baseline, Candidates: candidates, Improved: improved, Dropped: len(candidates) - len(improved), RewriteModel: rewrite.Model, RewriteUsage: rewrite.Usage, DurationMS: time.Since(started).Milliseconds()}, nil
+}
+
+func (s *RAGService) loadChunks(ctx context.Context) ([]domain.KnowledgeChunk, error) {
+	chunks, err := s.store.LoadKnowledgeChunks(ctx, domain.ChunkStrategyStructural)
+	if err != nil {
+		return nil, err
+	}
+	if len(chunks) > 0 {
+		return chunks, nil
+	}
+	if _, err := s.indexer.Build(ctx); err != nil {
+		return nil, fmt.Errorf("build missing knowledge index: %w", err)
+	}
+	return s.store.LoadKnowledgeChunks(ctx, domain.ChunkStrategyStructural)
+}
+
+func tokenSet(text string) map[string]struct{} {
+	result := map[string]struct{}{}
+	for _, token := range tokenize(text) {
+		result[token] = struct{}{}
+	}
+	return result
+}
+func lexicalOverlap(query, document map[string]struct{}) float64 {
+	if len(query) == 0 {
+		return 0
+	}
+	matches := 0
+	for token := range query {
+		if _, ok := document[token]; ok {
+			matches++
+		}
+	}
+	return float64(matches) / float64(len(query))
 }
 
 func (s *RAGService) validateQuestion(question string) (string, error) {

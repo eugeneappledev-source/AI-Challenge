@@ -59,3 +59,25 @@ func TestRAGControlSetHasTenQuestions(t *testing.T) {
 		}
 	}
 }
+
+func TestRetrievalComparisonRewritesReranksAndFilters(t *testing.T) {
+	chunks := []domain.KnowledgeChunk{}
+	for _, item := range []struct{ id, source, content string }{
+		{"https", "deploy/Caddyfile", "Caddy reverse proxy automatically provisions HTTPS certificates."},
+		{"other", "README.md", "The project contains an iOS application."},
+	} {
+		chunks = append(chunks, domain.KnowledgeChunk{ID: item.id, Strategy: domain.ChunkStrategyStructural, Source: item.source, Content: item.content, Vector: embedText(item.content), Dimensions: 256})
+	}
+	model := &ragModelStub{}
+	service := NewRAGService(&ragStoreStub{chunks: chunks}, ragIndexerStub{}, model, 500)
+	result, err := service.CompareRetrieval(context.Background(), "Как работает HTTPS?", 2, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.RewrittenQuery == "" || len(result.Candidates) != 2 || len(result.Improved) < 1 {
+		t.Fatalf("unexpected comparison: %#v", result)
+	}
+	if result.Candidates[0].RerankScore < result.Candidates[1].RerankScore {
+		t.Fatal("candidates are not reranked")
+	}
+}

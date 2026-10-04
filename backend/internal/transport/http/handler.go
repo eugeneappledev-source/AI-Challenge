@@ -65,6 +65,7 @@ type KnowledgeIndexService interface {
 
 type RAGService interface {
 	Compare(context.Context, string) (domain.RAGComparison, error)
+	CompareRetrieval(context.Context, string, int, float64) (domain.RetrievalComparison, error)
 	ControlQuestions() []domain.ControlQuestion
 }
 
@@ -243,8 +244,32 @@ func (h *Handler) Routes() http.Handler {
 	if h.ragService != nil {
 		mux.Handle("GET /v1/knowledge/questions", h.requireAccessToken(http.HandlerFunc(h.ragControlQuestions)))
 		mux.Handle("POST /v1/knowledge/compare", h.requireAccessToken(h.limitRequests(http.HandlerFunc(h.compareRAG))))
+		mux.Handle("POST /v1/knowledge/retrieval/compare", h.requireAccessToken(h.limitRequests(http.HandlerFunc(h.compareRetrieval))))
 	}
 	return h.logging(h.recoverPanic(mux))
+}
+
+func (h *Handler) compareRetrieval(response http.ResponseWriter, request *http.Request) {
+	var payload struct {
+		Question  string  `json:"question"`
+		TopK      int     `json:"topK"`
+		Threshold float64 `json:"threshold"`
+	}
+	if err := decodeRequestJSON(response, request, &payload); err != nil {
+		writeAPIError(response, http.StatusBadRequest, "invalid_request", "Question and retrieval settings are required.")
+		return
+	}
+	result, err := h.ragService.CompareRetrieval(request.Context(), payload.Question, payload.TopK, payload.Threshold)
+	if err != nil {
+		status, code, message := http.StatusBadGateway, "retrieval_error", "Retrieval comparison is temporarily unavailable."
+		if errors.Is(err, application.ErrEmptyRAGQuestion) || errors.Is(err, application.ErrRAGQuestionTooLong) {
+			status, code, message = http.StatusBadRequest, "invalid_question", err.Error()
+		}
+		h.logger.Error("retrieval comparison failed", "error", err)
+		writeAPIError(response, status, code, message)
+		return
+	}
+	writeJSON(response, http.StatusOK, result)
 }
 
 func (h *Handler) ragControlQuestions(response http.ResponseWriter, _ *http.Request) {

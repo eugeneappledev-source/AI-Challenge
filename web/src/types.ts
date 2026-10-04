@@ -403,6 +403,8 @@ export interface KnowledgeIndexStatus {
 export interface RetrievedChunk {
   chunk: KnowledgeChunk;
   similarityScore: number;
+  lexicalScore?: number;
+  rerankScore?: number;
 }
 
 export interface RAGAnswer {
@@ -423,4 +425,18 @@ export interface ControlQuestion {
   id: string;
   question: string;
   expectedSources: string[];
+}
+
+export interface RetrievalComparison {
+  question: string;
+  rewrittenQuery: string;
+  topK: number;
+  threshold: number;
+  baseline: RetrievedChunk[];
+  candidates: RetrievedChunk[];
+  improved: RetrievedChunk[];
+  dropped: number;
+  rewriteModel: string;
+  rewriteUsage: Usage;
+  durationMs: number;
 }

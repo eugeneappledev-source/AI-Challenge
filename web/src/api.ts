@@ -27,6 +27,7 @@ import type {
   KnowledgeIndexStatus,
   RAGComparison,
   ControlQuestion,
+  RetrievalComparison,
 } from "./types";
 
 interface APIErrorPayload {
@@ -346,6 +347,15 @@ export async function compareRAG(question: string, signal?: AbortSignal): Promis
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ question }),
+    signal,
+  });
+}
+
+export async function compareRetrieval(question: string, topK: number, threshold: number, signal?: AbortSignal): Promise<RetrievalComparison> {
+  return requestJSON<RetrievalComparison>("/web-api/knowledge/retrieval/compare", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ question, topK, threshold }),
     signal,
   });
 }

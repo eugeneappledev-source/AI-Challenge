@@ -43,6 +43,8 @@ type KnowledgeIndexStatus struct {
 type RetrievedChunk struct {
 	Chunk           KnowledgeChunk `json:"chunk"`
 	SimilarityScore float64        `json:"similarityScore"`
+	LexicalScore    float64        `json:"lexicalScore,omitempty"`
+	RerankScore     float64        `json:"rerankScore,omitempty"`
 }
 
 type RAGAnswer struct {
@@ -63,4 +65,18 @@ type ControlQuestion struct {
 	ID              string   `json:"id"`
 	Question        string   `json:"question"`
 	ExpectedSources []string `json:"expectedSources"`
+}
+
+type RetrievalComparison struct {
+	Question       string           `json:"question"`
+	RewrittenQuery string           `json:"rewrittenQuery"`
+	TopK           int              `json:"topK"`
+	Threshold      float64          `json:"threshold"`
+	Baseline       []RetrievedChunk `json:"baseline"`
+	Candidates     []RetrievedChunk `json:"candidates"`
+	Improved       []RetrievedChunk `json:"improved"`
+	Dropped        int              `json:"dropped"`
+	RewriteModel   string           `json:"rewriteModel"`
+	RewriteUsage   Usage            `json:"rewriteUsage"`
+	DurationMS     int64            `json:"durationMs"`
 }
