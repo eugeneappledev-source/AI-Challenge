@@ -81,3 +81,35 @@ func TestRetrievalComparisonRewritesReranksAndFilters(t *testing.T) {
 		t.Fatal("candidates are not reranked")
 	}
 }
+
+func TestGroundedAnswerReturnsVerbatimVerifiedCitation(t *testing.T) {
+	content := "Caddy получает TLS-сертификат и отправляет запросы на backend. Секрет модели остаётся на сервере."
+	store := &ragStoreStub{chunks: []domain.KnowledgeChunk{{ID: "gateway", Strategy: domain.ChunkStrategyStructural, Source: "deploy/Caddyfile", Section: "proxy", Content: content, Vector: embedText(content), Dimensions: 256}}}
+	service := NewRAGService(store, ragIndexerStub{}, &ragModelStub{}, 500)
+	answer, err := service.AnswerGrounded(context.Background(), "Как работает Caddy TLS?", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if answer.Status != "answered" || len(answer.Citations) != 1 {
+		t.Fatalf("unexpected answer: %#v", answer)
+	}
+	if !answer.Citations[0].QuoteValid || !strings.Contains(content, answer.Citations[0].Quote) {
+		t.Fatal("citation is not a verbatim chunk excerpt")
+	}
+}
+
+func TestGroundedAnswerDoesNotCallAnswerModelBelowThreshold(t *testing.T) {
+	content := "Unrelated short document."
+	model := &ragModelStub{}
+	service := NewRAGService(&ragStoreStub{chunks: []domain.KnowledgeChunk{{ID: "x", Strategy: domain.ChunkStrategyStructural, Source: "x.md", Content: content, Vector: embedText(content), Dimensions: 256}}}, ragIndexerStub{}, model, 500)
+	answer, err := service.AnswerGrounded(context.Background(), "Совершенно неизвестный вопрос", 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if answer.Status != "insufficient_context" {
+		t.Fatalf("expected refusal, got %#v", answer)
+	}
+	if len(model.prompts) != 1 {
+		t.Fatalf("only query rewrite may run, answer model calls=%d", len(model.prompts))
+	}
+}

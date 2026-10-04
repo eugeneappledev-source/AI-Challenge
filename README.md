@@ -38,6 +38,7 @@
 | 5 | [21](challenges/day-21/README.md) | Индексация документов | Две стратегии chunking, embeddings и локальный индекс | ✅ |
 | 5 | [22](challenges/day-22/README.md) | Первый RAG | Сравнение без контекста и с retrieved chunks | ✅ |
 | 5 | [23](challenges/day-23/README.md) | Улучшение retrieval | Query rewrite, hybrid reranking и фильтрация | ✅ |
+| 5 | [24](challenges/day-24/README.md) | Ответы с доказательствами | Sources, verbatim quotes и честный отказ | ✅ |
 
 Подробная навигация по выполненным заданиям находится в [дневнике челленджа](challenges/README.md).
 
@@ -109,7 +110,8 @@ AI-Challenge/
 │   ├── day-20/                  # multi-server orchestration
 │   ├── day-21/                  # chunking, embeddings и локальный индекс
 │   ├── day-22/                  # вопрос, retrieval, контекст и LLM
-│   └── day-23/                  # rewrite, reranker, threshold и top-K
+│   ├── day-23/                  # rewrite, reranker, threshold и top-K
+│   └── day-24/                  # sources, quotes и confidence gate
 └── .github/workflows/           # автоматические проверки
 ```
 
@@ -180,3 +182,4 @@ AI-Challenge/
 - [`day-21`](https://github.com/eugeneappledev-source/AI-Challenge/tree/day-21) — две стратегии chunking, локальные embeddings и SQLite-индекс с метаданными.
 - [`day-22`](https://github.com/eugeneappledev-source/AI-Challenge/tree/day-22) — первый RAG-пайплайн, A/B-ответы и 10 контрольных вопросов.
 - [`day-23`](https://github.com/eugeneappledev-source/AI-Challenge/tree/day-23) — query rewriting, hybrid reranker и управляемая фильтрация retrieval.
+- [`day-24`](https://github.com/eugeneappledev-source/AI-Challenge/tree/day-24) — доказательные ответы, проверенные цитаты и отказ при низкой уверенности.

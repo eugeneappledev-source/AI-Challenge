@@ -28,6 +28,8 @@ import type {
   RAGComparison,
   ControlQuestion,
   RetrievalComparison,
+  GroundedAnswer,
+  EvidenceReport,
 } from "./types";
 
 interface APIErrorPayload {
@@ -358,4 +360,15 @@ export async function compareRetrieval(question: string, topK: number, threshold
     body: JSON.stringify({ question, topK, threshold }),
     signal,
   });
+}
+
+export async function askGrounded(question: string, threshold: number, signal?: AbortSignal): Promise<GroundedAnswer> {
+  return requestJSON<GroundedAnswer>("/web-api/knowledge/answer", {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question, threshold }), signal,
+  });
+}
+
+export async function loadEvidenceChecks(threshold: number, signal?: AbortSignal): Promise<EvidenceReport> {
+  const query = new URLSearchParams({ threshold: String(threshold) });
+  return requestJSON<EvidenceReport>(`/web-api/knowledge/evidence-checks?${query}`, { signal });
 }

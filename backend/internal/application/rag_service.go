@@ -152,6 +152,110 @@ func (s *RAGService) CompareRetrieval(ctx context.Context, question string, topK
 	return domain.RetrievalComparison{Question: normalized, RewrittenQuery: rewritten, TopK: topK, Threshold: threshold, Baseline: baseline, Candidates: candidates, Improved: improved, Dropped: len(candidates) - len(improved), RewriteModel: rewrite.Model, RewriteUsage: rewrite.Usage, DurationMS: time.Since(started).Milliseconds()}, nil
 }
 
+func (s *RAGService) AnswerGrounded(ctx context.Context, question string, threshold float64) (domain.GroundedAnswer, error) {
+	started := time.Now()
+	normalized, err := s.validateQuestion(question)
+	if err != nil {
+		return domain.GroundedAnswer{}, err
+	}
+	if threshold < 0 {
+		threshold = 0
+	}
+	if threshold > 1 {
+		threshold = 1
+	}
+	retrieval, err := s.CompareRetrieval(ctx, normalized, 5, threshold)
+	if err != nil {
+		return domain.GroundedAnswer{}, err
+	}
+	if len(retrieval.Improved) == 0 {
+		return domain.GroundedAnswer{Status: "insufficient_context", Question: normalized, Answer: "В базе знаний недостаточно подтверждённого контекста для надёжного ответа.", Threshold: threshold, Citations: []domain.EvidenceCitation{}, DurationMS: time.Since(started).Milliseconds()}, nil
+	}
+	citations := make([]domain.EvidenceCitation, 0, 3)
+	for _, item := range retrieval.Improved {
+		if len(citations) == 3 {
+			break
+		}
+		citations = append(citations, citationFrom(item))
+	}
+	contextBlock := formatRetrievedContext(retrieval.Improved)
+	temperature := 0.1
+	response, err := s.client.Generate(ctx, domain.ModelRequest{SystemPrompt: `Ты evidence-first ассистент по репозиторию AI Challenge. Ответь только по переданным фрагментам. Не выдумывай факты, пути или цитаты. Делай ссылки вида [1], [2] на номера фрагментов. Если фрагменты противоречат друг другу, укажи это.`, UserPrompt: "Вопрос:\n" + normalized + "\n\nПроверенный контекст:\n" + contextBlock, Temperature: &temperature, MaxTokens: 900})
+	if err != nil {
+		return domain.GroundedAnswer{}, fmt.Errorf("generate grounded answer: %w", err)
+	}
+	return domain.GroundedAnswer{Status: "answered", Question: normalized, Answer: strings.TrimSpace(response.Content), Confidence: retrieval.Improved[0].RerankScore, Threshold: threshold, Citations: citations, Model: response.Model, Usage: response.Usage, DurationMS: time.Since(started).Milliseconds()}, nil
+}
+
+func (s *RAGService) EvaluateEvidence(ctx context.Context, threshold float64) (domain.EvidenceReport, error) {
+	if threshold < 0 {
+		threshold = 0
+	}
+	if threshold > 1 {
+		threshold = 1
+	}
+	questions := s.ControlQuestions()
+	report := domain.EvidenceReport{Threshold: threshold, Checks: make([]domain.EvidenceCheck, 0, len(questions)), Total: len(questions)}
+	for _, question := range questions {
+		results, err := s.Retrieve(ctx, question.Question, 5)
+		if err != nil {
+			return report, err
+		}
+		check := domain.EvidenceCheck{ID: question.ID, Question: question.Question, ExpectedSources: question.ExpectedSources}
+		if len(results) > 0 {
+			item := results[0]
+			citation := citationFrom(item)
+			check.TopSource = item.Chunk.Source
+			check.Score = item.SimilarityScore
+			check.AboveThreshold = item.SimilarityScore >= threshold
+			check.QuoteValid = citation.QuoteValid
+			check.Citation = &citation
+			for _, candidate := range results {
+				for _, expected := range question.ExpectedSources {
+					if candidate.Chunk.Source == expected {
+						check.ExpectedSourceMatched = true
+						break
+					}
+				}
+				if check.ExpectedSourceMatched {
+					break
+				}
+			}
+		}
+		if check.ExpectedSourceMatched && check.AboveThreshold && check.QuoteValid {
+			report.Passed++
+		}
+		report.Checks = append(report.Checks, check)
+	}
+	return report, nil
+}
+
+func citationFrom(item domain.RetrievedChunk) domain.EvidenceCitation {
+	quote := quoteExcerpt(item.Chunk.Content, 260)
+	return domain.EvidenceCitation{Source: item.Chunk.Source, Section: item.Chunk.Section, ChunkID: item.Chunk.ID, Quote: quote, Score: maxFloat(item.RerankScore, item.SimilarityScore), QuoteValid: quote != "" && strings.Contains(item.Chunk.Content, quote)}
+}
+func quoteExcerpt(content string, limit int) string {
+	trimmed := strings.TrimSpace(content)
+	runes := []rune(trimmed)
+	if len(runes) <= limit {
+		return trimmed
+	}
+	cut := limit
+	for cut > limit/2 && runes[cut] != '\n' && runes[cut] != '.' && runes[cut] != '!' && runes[cut] != '?' {
+		cut--
+	}
+	if cut <= limit/2 {
+		cut = limit
+	}
+	return strings.TrimSpace(string(runes[:cut]))
+}
+func maxFloat(left, right float64) float64 {
+	if left > right {
+		return left
+	}
+	return right
+}
+
 func (s *RAGService) loadChunks(ctx context.Context) ([]domain.KnowledgeChunk, error) {
 	chunks, err := s.store.LoadKnowledgeChunks(ctx, domain.ChunkStrategyStructural)
 	if err != nil {

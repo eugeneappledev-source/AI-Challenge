@@ -440,3 +440,41 @@ export interface RetrievalComparison {
   rewriteUsage: Usage;
   durationMs: number;
 }
+
+export interface EvidenceCitation {
+  source: string;
+  section: string;
+  chunkId: string;
+  quote: string;
+  score: number;
+  quoteValid: boolean;
+}
+
+export interface GroundedAnswer {
+  status: "answered" | "insufficient_context";
+  question: string;
+  answer: string;
+  confidence: number;
+  threshold: number;
+  citations: EvidenceCitation[];
+  model?: string;
+  usage: Usage;
+  durationMs: number;
+}
+
+export interface EvidenceReport {
+  threshold: number;
+  passed: number;
+  total: number;
+  checks: Array<{
+    id: string;
+    question: string;
+    expectedSources: string[];
+    topSource?: string;
+    expectedSourceMatched: boolean;
+    aboveThreshold: boolean;
+    quoteValid: boolean;
+    score: number;
+    citation?: EvidenceCitation;
+  }>;
+}

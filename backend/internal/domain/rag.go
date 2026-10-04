@@ -80,3 +80,43 @@ type RetrievalComparison struct {
 	RewriteUsage   Usage            `json:"rewriteUsage"`
 	DurationMS     int64            `json:"durationMs"`
 }
+
+type EvidenceCitation struct {
+	Source     string  `json:"source"`
+	Section    string  `json:"section"`
+	ChunkID    string  `json:"chunkId"`
+	Quote      string  `json:"quote"`
+	Score      float64 `json:"score"`
+	QuoteValid bool    `json:"quoteValid"`
+}
+
+type GroundedAnswer struct {
+	Status     string             `json:"status"`
+	Question   string             `json:"question"`
+	Answer     string             `json:"answer"`
+	Confidence float64            `json:"confidence"`
+	Threshold  float64            `json:"threshold"`
+	Citations  []EvidenceCitation `json:"citations"`
+	Model      string             `json:"model,omitempty"`
+	Usage      Usage              `json:"usage"`
+	DurationMS int64              `json:"durationMs"`
+}
+
+type EvidenceCheck struct {
+	ID                    string            `json:"id"`
+	Question              string            `json:"question"`
+	ExpectedSources       []string          `json:"expectedSources"`
+	TopSource             string            `json:"topSource,omitempty"`
+	ExpectedSourceMatched bool              `json:"expectedSourceMatched"`
+	AboveThreshold        bool              `json:"aboveThreshold"`
+	QuoteValid            bool              `json:"quoteValid"`
+	Score                 float64           `json:"score"`
+	Citation              *EvidenceCitation `json:"citation,omitempty"`
+}
+
+type EvidenceReport struct {
+	Threshold float64         `json:"threshold"`
+	Checks    []EvidenceCheck `json:"checks"`
+	Passed    int             `json:"passed"`
+	Total     int             `json:"total"`
+}

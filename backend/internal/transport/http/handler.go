@@ -66,6 +66,8 @@ type KnowledgeIndexService interface {
 type RAGService interface {
 	Compare(context.Context, string) (domain.RAGComparison, error)
 	CompareRetrieval(context.Context, string, int, float64) (domain.RetrievalComparison, error)
+	AnswerGrounded(context.Context, string, float64) (domain.GroundedAnswer, error)
+	EvaluateEvidence(context.Context, float64) (domain.EvidenceReport, error)
 	ControlQuestions() []domain.ControlQuestion
 }
 
@@ -245,8 +247,48 @@ func (h *Handler) Routes() http.Handler {
 		mux.Handle("GET /v1/knowledge/questions", h.requireAccessToken(http.HandlerFunc(h.ragControlQuestions)))
 		mux.Handle("POST /v1/knowledge/compare", h.requireAccessToken(h.limitRequests(http.HandlerFunc(h.compareRAG))))
 		mux.Handle("POST /v1/knowledge/retrieval/compare", h.requireAccessToken(h.limitRequests(http.HandlerFunc(h.compareRetrieval))))
+		mux.Handle("POST /v1/knowledge/answer", h.requireAccessToken(h.limitRequests(http.HandlerFunc(h.groundedAnswer))))
+		mux.Handle("GET /v1/knowledge/evidence-checks", h.requireAccessToken(http.HandlerFunc(h.evidenceChecks)))
 	}
 	return h.logging(h.recoverPanic(mux))
+}
+
+func (h *Handler) groundedAnswer(response http.ResponseWriter, request *http.Request) {
+	var payload struct {
+		Question  string  `json:"question"`
+		Threshold float64 `json:"threshold"`
+	}
+	if err := decodeRequestJSON(response, request, &payload); err != nil {
+		writeAPIError(response, http.StatusBadRequest, "invalid_request", "Question is required.")
+		return
+	}
+	result, err := h.ragService.AnswerGrounded(request.Context(), payload.Question, payload.Threshold)
+	if err != nil {
+		status, code, message := http.StatusBadGateway, "grounded_answer_error", "Grounded answer is temporarily unavailable."
+		if errors.Is(err, application.ErrEmptyRAGQuestion) || errors.Is(err, application.ErrRAGQuestionTooLong) {
+			status, code, message = http.StatusBadRequest, "invalid_question", err.Error()
+		}
+		h.logger.Error("grounded answer failed", "error", err)
+		writeAPIError(response, status, code, message)
+		return
+	}
+	writeJSON(response, http.StatusOK, result)
+}
+
+func (h *Handler) evidenceChecks(response http.ResponseWriter, request *http.Request) {
+	threshold := 0.08
+	if raw := request.URL.Query().Get("threshold"); raw != "" {
+		if parsed, err := strconv.ParseFloat(raw, 64); err == nil {
+			threshold = parsed
+		}
+	}
+	report, err := h.ragService.EvaluateEvidence(request.Context(), threshold)
+	if err != nil {
+		h.logger.Error("evidence checks failed", "error", err)
+		writeAPIError(response, http.StatusInternalServerError, "evidence_check_error", "Evidence checks are unavailable.")
+		return
+	}
+	writeJSON(response, http.StatusOK, report)
 }
 
 func (h *Handler) compareRetrieval(response http.ResponseWriter, request *http.Request) {
