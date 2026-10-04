@@ -68,6 +68,10 @@ type RAGService interface {
 	CompareRetrieval(context.Context, string, int, float64) (domain.RetrievalComparison, error)
 	AnswerGrounded(context.Context, string, float64) (domain.GroundedAnswer, error)
 	EvaluateEvidence(context.Context, float64) (domain.EvidenceReport, error)
+	Chat(context.Context, string, string) (domain.RAGChatExchange, error)
+	ChatState(context.Context, string) (domain.RAGChatState, error)
+	ClearChat(context.Context, string) error
+	ChatScenarios() []domain.RAGChatScenario
 	ControlQuestions() []domain.ControlQuestion
 }
 
@@ -249,8 +253,52 @@ func (h *Handler) Routes() http.Handler {
 		mux.Handle("POST /v1/knowledge/retrieval/compare", h.requireAccessToken(h.limitRequests(http.HandlerFunc(h.compareRetrieval))))
 		mux.Handle("POST /v1/knowledge/answer", h.requireAccessToken(h.limitRequests(http.HandlerFunc(h.groundedAnswer))))
 		mux.Handle("GET /v1/knowledge/evidence-checks", h.requireAccessToken(http.HandlerFunc(h.evidenceChecks)))
+		mux.Handle("GET /v1/knowledge/chat", h.requireAccessToken(http.HandlerFunc(h.ragChatState)))
+		mux.Handle("POST /v1/knowledge/chat", h.requireAccessToken(h.limitRequests(http.HandlerFunc(h.ragChat))))
+		mux.Handle("DELETE /v1/knowledge/chat", h.requireAccessToken(http.HandlerFunc(h.clearRAGChat)))
+		mux.Handle("GET /v1/knowledge/chat/scenarios", h.requireAccessToken(http.HandlerFunc(h.ragChatScenarios)))
 	}
 	return h.logging(h.recoverPanic(mux))
+}
+
+func (h *Handler) ragChatScenarios(response http.ResponseWriter, _ *http.Request) {
+	writeJSON(response, http.StatusOK, h.ragService.ChatScenarios())
+}
+func (h *Handler) ragChatState(response http.ResponseWriter, request *http.Request) {
+	result, err := h.ragService.ChatState(request.Context(), request.URL.Query().Get("sessionId"))
+	if err != nil {
+		writeAPIError(response, http.StatusBadRequest, "invalid_session", err.Error())
+		return
+	}
+	writeJSON(response, http.StatusOK, result)
+}
+func (h *Handler) ragChat(response http.ResponseWriter, request *http.Request) {
+	var payload struct {
+		SessionID string `json:"sessionId"`
+		Message   string `json:"message"`
+	}
+	if err := decodeRequestJSON(response, request, &payload); err != nil {
+		writeAPIError(response, http.StatusBadRequest, "invalid_request", "Session and message are required.")
+		return
+	}
+	result, err := h.ragService.Chat(request.Context(), payload.SessionID, payload.Message)
+	if err != nil {
+		status, code, message := http.StatusBadGateway, "rag_chat_error", "RAG chat is temporarily unavailable."
+		if errors.Is(err, application.ErrInvalidRAGSession) || errors.Is(err, application.ErrEmptyRAGQuestion) || errors.Is(err, application.ErrRAGQuestionTooLong) {
+			status, code, message = http.StatusBadRequest, "invalid_chat_input", err.Error()
+		}
+		h.logger.Error("RAG chat failed", "error", err)
+		writeAPIError(response, status, code, message)
+		return
+	}
+	writeJSON(response, http.StatusOK, result)
+}
+func (h *Handler) clearRAGChat(response http.ResponseWriter, request *http.Request) {
+	if err := h.ragService.ClearChat(request.Context(), request.URL.Query().Get("sessionId")); err != nil {
+		writeAPIError(response, http.StatusBadRequest, "invalid_session", err.Error())
+		return
+	}
+	response.WriteHeader(http.StatusNoContent)
 }
 
 func (h *Handler) groundedAnswer(response http.ResponseWriter, request *http.Request) {

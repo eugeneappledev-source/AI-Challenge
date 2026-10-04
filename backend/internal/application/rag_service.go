@@ -2,9 +2,11 @@ package application
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -16,10 +18,16 @@ import (
 var (
 	ErrEmptyRAGQuestion   = errors.New("question is required")
 	ErrRAGQuestionTooLong = errors.New("question is too long")
+	ErrInvalidRAGSession  = errors.New("session id is invalid")
 )
 
 type RAGStore interface {
 	LoadKnowledgeChunks(context.Context, domain.ChunkStrategy) ([]domain.KnowledgeChunk, error)
+	AppendRAGChatMessage(context.Context, string, domain.RAGChatMessage) (domain.RAGChatMessage, error)
+	LoadRAGChat(context.Context, string) ([]domain.RAGChatMessage, error)
+	LoadRAGTaskState(context.Context, string) (domain.RAGTaskState, bool, error)
+	SaveRAGTaskState(context.Context, domain.RAGTaskState) error
+	ClearRAGChat(context.Context, string) error
 }
 
 type RAGIndexer interface {
@@ -228,6 +236,147 @@ func (s *RAGService) EvaluateEvidence(ctx context.Context, threshold float64) (d
 		report.Checks = append(report.Checks, check)
 	}
 	return report, nil
+}
+
+func (s *RAGService) Chat(ctx context.Context, sessionID, input string) (domain.RAGChatExchange, error) {
+	sessionID = strings.TrimSpace(sessionID)
+	if !validRAGSession(sessionID) {
+		return domain.RAGChatExchange{}, ErrInvalidRAGSession
+	}
+	normalized, err := s.validateQuestion(input)
+	if err != nil {
+		return domain.RAGChatExchange{}, err
+	}
+	history, err := s.store.LoadRAGChat(ctx, sessionID)
+	if err != nil {
+		return domain.RAGChatExchange{}, err
+	}
+	task, _, err := s.store.LoadRAGTaskState(ctx, sessionID)
+	if err != nil {
+		return domain.RAGChatExchange{}, err
+	}
+	task = updateRAGTaskState(task, sessionID, normalized, time.Now().UTC())
+	if err := s.store.SaveRAGTaskState(ctx, task); err != nil {
+		return domain.RAGChatExchange{}, err
+	}
+	query := task.Goal + "\n" + strings.Join(task.Constraints, "\n") + "\n" + normalized
+	retrieval, err := s.CompareRetrieval(ctx, query, 5, .06)
+	if err != nil {
+		return domain.RAGChatExchange{}, err
+	}
+	user := domain.RAGChatMessage{Role: "user", Content: normalized, Citations: []domain.EvidenceCitation{}, CreatedAt: time.Now().UTC()}
+	assistant := domain.RAGChatMessage{Role: "assistant", Citations: []domain.EvidenceCitation{}, CreatedAt: time.Now().UTC()}
+	if len(retrieval.Improved) == 0 {
+		assistant.Content = "В базе знаний недостаточно подтверждённого контекста, чтобы продолжить задачу без догадок."
+	} else {
+		for _, item := range retrieval.Improved {
+			if len(assistant.Citations) == 3 {
+				break
+			}
+			assistant.Citations = append(assistant.Citations, citationFrom(item))
+		}
+		recent := history
+		if len(recent) > 8 {
+			recent = recent[len(recent)-8:]
+		}
+		taskJSON, _ := json.Marshal(task)
+		var dialogue strings.Builder
+		for _, message := range recent {
+			fmt.Fprintf(&dialogue, "%s: %s\n", message.Role, message.Content)
+		}
+		temperature := .15
+		response, generateErr := s.client.Generate(ctx, domain.ModelRequest{SystemPrompt: `Ты RAG-агент, который ведёт долгую задачу. Учитывай task memory, последние реплики и только подтверждённый контекст репозитория. Сохраняй принятые ограничения и определения. Ссылайся на контекст как [1], [2]. Если данных мало, скажи об этом.`, UserPrompt: "TASK MEMORY:\n" + string(taskJSON) + "\n\nRECENT DIALOGUE:\n" + dialogue.String() + "\nCURRENT USER MESSAGE:\n" + normalized + "\n\nRETRIEVED CONTEXT:\n" + formatRetrievedContext(retrieval.Improved), Temperature: &temperature, MaxTokens: 1000})
+		if generateErr != nil {
+			return domain.RAGChatExchange{}, generateErr
+		}
+		assistant.Content = strings.TrimSpace(response.Content)
+		assistant.Usage = response.Usage
+	}
+	user, err = s.store.AppendRAGChatMessage(ctx, sessionID, user)
+	if err != nil {
+		return domain.RAGChatExchange{}, err
+	}
+	assistant, err = s.store.AppendRAGChatMessage(ctx, sessionID, assistant)
+	if err != nil {
+		return domain.RAGChatExchange{}, err
+	}
+	return domain.RAGChatExchange{User: user, Assistant: assistant, Task: task, Retrieved: retrieval.Improved}, nil
+}
+
+func (s *RAGService) ChatState(ctx context.Context, sessionID string) (domain.RAGChatState, error) {
+	sessionID = strings.TrimSpace(sessionID)
+	if !validRAGSession(sessionID) {
+		return domain.RAGChatState{}, ErrInvalidRAGSession
+	}
+	messages, err := s.store.LoadRAGChat(ctx, sessionID)
+	if err != nil {
+		return domain.RAGChatState{}, err
+	}
+	task, _, err := s.store.LoadRAGTaskState(ctx, sessionID)
+	if err != nil {
+		return domain.RAGChatState{}, err
+	}
+	total := 0
+	for _, message := range messages {
+		total += message.Usage.TotalTokens
+	}
+	return domain.RAGChatState{SessionID: sessionID, Messages: messages, Task: task, TotalTokens: total}, nil
+}
+func (s *RAGService) ClearChat(ctx context.Context, sessionID string) error {
+	sessionID = strings.TrimSpace(sessionID)
+	if !validRAGSession(sessionID) {
+		return ErrInvalidRAGSession
+	}
+	return s.store.ClearRAGChat(ctx, sessionID)
+}
+func (s *RAGService) ChatScenarios() []domain.RAGChatScenario {
+	return []domain.RAGChatScenario{
+		{ID: "release", Name: "Релиз Knowledge Studio", Description: "12 реплик: цель, ограничения, определения и уточнения релиза.", Messages: []string{"Помоги подготовить релиз Knowledge Studio из этого репозитория.", "Релиз должен работать на текущем VPS и не раскрывать DeepSeek API key.", "Под MVP я понимаю страницы Дней 21–25 и рабочий health check.", "Сначала перечисли компоненты, которые уже есть в проекте.", "Бюджет — без новых платных сервисов.", "Какая роль у Caddy в этой схеме?", "Нужно сохранить старые лаборатории Дней 1–20.", "Составь порядок безопасной проверки перед деплоем.", "Добавь требование: при слабом retrieval агент не должен выдумывать ответ.", "Какие файлы подтверждают конфигурацию деплоя?", "Сведи ограничения и договорённости в короткий чек-лист.", "Подготовь итоговый план релиза с критериями готовности."}},
+		{ID: "review", Name: "Техническое ревью RAG", Description: "11 реплик: исследование архитектуры и проверка принятых решений.", Messages: []string{"Проведи техническое ревью RAG-части проекта.", "Главная цель — проверяемые ответы с источниками.", "Термин evidence gate означает отказ от генерации ниже порога уверенности.", "Не предлагай внешнюю vector database.", "Сравни fixed и structural chunking по коду проекта.", "Какие метаданные сохраняются у каждого chunk?", "Проверь, как выполняется query rewrite.", "Нужно отдельно учитывать риск выдуманных цитат.", "Какая проверка гарантирует verbatim quote?", "Собери найденные риски, но не меняй исходное ограничение по базе данных.", "Дай итог ревью и три приоритетных улучшения."}},
+	}
+}
+
+var ragSessionPattern = regexp.MustCompile(`^[a-zA-Z0-9_-]{3,64}$`)
+
+func validRAGSession(value string) bool { return ragSessionPattern.MatchString(value) }
+
+var termPattern = regexp.MustCompile(`(?i)([\p{L}\d _-]{2,32})\s+(?:означает|это)\s+([^.!?\n]{2,100})`)
+
+func updateRAGTaskState(state domain.RAGTaskState, sessionID, input string, now time.Time) domain.RAGTaskState {
+	state.SessionID = sessionID
+	if state.Constraints == nil {
+		state.Constraints = []string{}
+	}
+	if state.Terms == nil {
+		state.Terms = map[string]string{}
+	}
+	if strings.TrimSpace(state.Goal) == "" {
+		state.Goal = input
+	}
+	lower := strings.ToLower(input)
+	for _, marker := range []string{"долж", "нужно", "только", "не ", "огранич", "бюджет", "срок"} {
+		if strings.Contains(lower, marker) {
+			state.Constraints = appendUniqueBounded(state.Constraints, input, 8)
+			break
+		}
+	}
+	if match := termPattern.FindStringSubmatch(input); len(match) == 3 {
+		state.Terms[strings.TrimSpace(match[1])] = strings.TrimSpace(match[2])
+	}
+	state.UpdatedAt = now
+	return state
+}
+func appendUniqueBounded(values []string, value string, max int) []string {
+	for _, existing := range values {
+		if existing == value {
+			return values
+		}
+	}
+	values = append(values, value)
+	if len(values) > max {
+		values = values[len(values)-max:]
+	}
+	return values
 }
 
 func citationFrom(item domain.RetrievedChunk) domain.EvidenceCitation {

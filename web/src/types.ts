@@ -478,3 +478,41 @@ export interface EvidenceReport {
     citation?: EvidenceCitation;
   }>;
 }
+
+export interface RAGChatMessage {
+  sequence: number;
+  role: "user" | "assistant";
+  content: string;
+  citations: EvidenceCitation[];
+  usage: Usage;
+  createdAt: string;
+}
+
+export interface RAGTaskState {
+  sessionId: string;
+  goal: string;
+  constraints: string[];
+  terms: Record<string,string>;
+  updatedAt: string;
+}
+
+export interface RAGChatState {
+  sessionId: string;
+  messages: RAGChatMessage[];
+  task: RAGTaskState;
+  totalTokens: number;
+}
+
+export interface RAGChatExchange {
+  user: RAGChatMessage;
+  assistant: RAGChatMessage;
+  task: RAGTaskState;
+  retrieved: RetrievedChunk[];
+}
+
+export interface RAGChatScenario {
+  id: string;
+  name: string;
+  description: string;
+  messages: string[];
+}

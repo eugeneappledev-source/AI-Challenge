@@ -50,6 +50,7 @@
 | [22](day-22/README.md) | Первый RAG | A/B без контекста и с retrieved chunks, 10 вопросов | ✅ |
 | [23](day-23/README.md) | Улучшение retrieval | Query rewrite, hybrid reranker, threshold и top-K | ✅ |
 | [24](day-24/README.md) | Доказательные ответы | Sources, verbatim quotes и confidence gate | ✅ |
+| [25](day-25/README.md) | Диалоговый RAG | SQLite history, sources и explicit task memory | ✅ |
 
 ## Как читать дневник
 

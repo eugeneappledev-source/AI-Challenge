@@ -39,6 +39,7 @@
 | 5 | [22](challenges/day-22/README.md) | Первый RAG | Сравнение без контекста и с retrieved chunks | ✅ |
 | 5 | [23](challenges/day-23/README.md) | Улучшение retrieval | Query rewrite, hybrid reranking и фильтрация | ✅ |
 | 5 | [24](challenges/day-24/README.md) | Ответы с доказательствами | Sources, verbatim quotes и честный отказ | ✅ |
+| 5 | [25](challenges/day-25/README.md) | Диалоговый RAG | История, источники и память задачи в SQLite | ✅ |
 
 Подробная навигация по выполненным заданиям находится в [дневнике челленджа](challenges/README.md).
 
@@ -55,7 +56,7 @@
 
 ## Текущая версия проекта
 
-Нативное iOS-приложение сохраняет каталог заданий первых двух недель. Первая неделя исследует базовый API-вызов, управляемый JSON, способы рассуждения, `temperature` и версии моделей. Вторая неделя строит самостоятельного агента Compass, добавляет ему SQLite-память, token/cost-метрики, summary-компрессию и три переключаемые стратегии контекста без summary. С третьей недели интерактивные лаборатории развиваются в адаптивной Web-версии: Дни 11–15 посвящены памяти, персонализации и управляемому жизненному циклу. Четвёртая неделя развивает **Startup & Business Radar**: День 16 подключает официальный MCP-клиент, День 17 добавляет первый tool вокруг Hacker News API, День 18 запускает агента по cron, День 19 связывает tools одного сервера, а День 20 оркестрирует независимые Research и Advisor MCP-серверы. Пятая неделя открывает **Knowledge Studio**: День 21 индексирует репозиторий двумя стратегиями chunking и сохраняет локальные embeddings в SQLite. Предыдущие Web-сценарии остаются доступны через переключатель на сайте.
+Нативное iOS-приложение сохраняет каталог заданий первых двух недель. Первая неделя исследует базовый API-вызов, управляемый JSON, способы рассуждения, `temperature` и версии моделей. Вторая неделя строит самостоятельного агента Compass, добавляет ему SQLite-память, token/cost-метрики, summary-компрессию и три переключаемые стратегии контекста без summary. С третьей недели интерактивные лаборатории развиваются в адаптивной Web-версии: Дни 11–15 посвящены памяти, персонализации и управляемому жизненному циклу. Четвёртая неделя развивает **Startup & Business Radar** и оркестрацию MCP. Пятая неделя строит **Knowledge Studio**: chunking и embeddings, первый RAG, query rewrite и reranking, доказательные ответы с проверенными цитатами, затем reload-safe диалоговый RAG с отдельной памятью задачи. Предыдущие Web-сценарии остаются доступны через переключатель на сайте.
 
 Проект развёрнут на VPS и доступен по HTTPS без регистрации.
 
@@ -73,6 +74,7 @@ flowchart LR
     Gateway --> API["Go backend"]
     API --> LLM["DeepSeek API"]
     API --> MCP["MCP servers · Streamable HTTP"]
+    API --> DB["SQLite · index, history, task memory"]
     LLM --> API
     API --> Gateway
     Gateway --> App
@@ -111,7 +113,8 @@ AI-Challenge/
 │   ├── day-21/                  # chunking, embeddings и локальный индекс
 │   ├── day-22/                  # вопрос, retrieval, контекст и LLM
 │   ├── day-23/                  # rewrite, reranker, threshold и top-K
-│   └── day-24/                  # sources, quotes и confidence gate
+│   ├── day-24/                  # sources, quotes и confidence gate
+│   └── day-25/                  # persistent RAG chat и task memory
 └── .github/workflows/           # автоматические проверки
 ```
 
@@ -144,6 +147,7 @@ AI-Challenge/
 - адаптивный интерфейс для desktop и mobile;
 - отдельные лаборатории с hash-навигацией без потери предыдущих заданий;
 - визуализация слоёв памяти, профилей, pipeline навыков, состояния задачи, инвариантов и контролируемого жизненного цикла;
+- отдельный Knowledge Studio для индексации, retrieval, evidence-first ответов и RAG-чата;
 - редактирование пользовательских конфигураций и A/B-сравнение ответов;
 - публичный same-origin endpoint без секретов в браузере;
 - серверные ограничения частоты и дневного числа запросов.
@@ -183,3 +187,4 @@ AI-Challenge/
 - [`day-22`](https://github.com/eugeneappledev-source/AI-Challenge/tree/day-22) — первый RAG-пайплайн, A/B-ответы и 10 контрольных вопросов.
 - [`day-23`](https://github.com/eugeneappledev-source/AI-Challenge/tree/day-23) — query rewriting, hybrid reranker и управляемая фильтрация retrieval.
 - [`day-24`](https://github.com/eugeneappledev-source/AI-Challenge/tree/day-24) — доказательные ответы, проверенные цитаты и отказ при низкой уверенности.
+- [`day-25`](https://github.com/eugeneappledev-source/AI-Challenge/tree/day-25) — диалоговый RAG с SQLite-историей, sources и explicit task memory.

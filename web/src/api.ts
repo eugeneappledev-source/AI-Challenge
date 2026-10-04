@@ -30,6 +30,9 @@ import type {
   RetrievalComparison,
   GroundedAnswer,
   EvidenceReport,
+  RAGChatState,
+  RAGChatExchange,
+  RAGChatScenario,
 } from "./types";
 
 interface APIErrorPayload {
@@ -371,4 +374,21 @@ export async function askGrounded(question: string, threshold: number, signal?: 
 export async function loadEvidenceChecks(threshold: number, signal?: AbortSignal): Promise<EvidenceReport> {
   const query = new URLSearchParams({ threshold: String(threshold) });
   return requestJSON<EvidenceReport>(`/web-api/knowledge/evidence-checks?${query}`, { signal });
+}
+
+export async function loadRAGChat(sessionId: string, signal?: AbortSignal): Promise<RAGChatState> {
+  const query = new URLSearchParams({ sessionId });
+  return requestJSON<RAGChatState>(`/web-api/knowledge/chat?${query}`, { signal });
+}
+
+export async function sendRAGChat(sessionId: string, message: string, signal?: AbortSignal): Promise<RAGChatExchange> {
+  return requestJSON<RAGChatExchange>("/web-api/knowledge/chat", { method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sessionId,message}),signal });
+}
+
+export async function clearRAGChat(sessionId: string): Promise<void> {
+  const query = new URLSearchParams({ sessionId });const response=await fetch(`/web-api/knowledge/chat?${query}`,{method:"DELETE"});if(!response.ok)throw await responseError(response);
+}
+
+export async function loadRAGChatScenarios(signal?: AbortSignal): Promise<RAGChatScenario[]> {
+  return requestJSON<RAGChatScenario[]>("/web-api/knowledge/chat/scenarios", { signal });
 }

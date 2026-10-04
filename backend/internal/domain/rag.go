@@ -120,3 +120,41 @@ type EvidenceReport struct {
 	Passed    int             `json:"passed"`
 	Total     int             `json:"total"`
 }
+
+type RAGChatMessage struct {
+	Sequence  int                `json:"sequence"`
+	Role      string             `json:"role"`
+	Content   string             `json:"content"`
+	Citations []EvidenceCitation `json:"citations"`
+	Usage     Usage              `json:"usage"`
+	CreatedAt time.Time          `json:"createdAt"`
+}
+
+type RAGTaskState struct {
+	SessionID   string            `json:"sessionId"`
+	Goal        string            `json:"goal"`
+	Constraints []string          `json:"constraints"`
+	Terms       map[string]string `json:"terms"`
+	UpdatedAt   time.Time         `json:"updatedAt"`
+}
+
+type RAGChatState struct {
+	SessionID   string           `json:"sessionId"`
+	Messages    []RAGChatMessage `json:"messages"`
+	Task        RAGTaskState     `json:"task"`
+	TotalTokens int              `json:"totalTokens"`
+}
+
+type RAGChatExchange struct {
+	User      RAGChatMessage   `json:"user"`
+	Assistant RAGChatMessage   `json:"assistant"`
+	Task      RAGTaskState     `json:"task"`
+	Retrieved []RetrievedChunk `json:"retrieved"`
+}
+
+type RAGChatScenario struct {
+	ID          string   `json:"id"`
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	Messages    []string `json:"messages"`
+}

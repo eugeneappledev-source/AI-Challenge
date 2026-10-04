@@ -8,10 +8,37 @@ import (
 	"github.com/eugeneappledev-source/AI-Challenge/backend/internal/domain"
 )
 
-type ragStoreStub struct{ chunks []domain.KnowledgeChunk }
+type ragStoreStub struct {
+	chunks   []domain.KnowledgeChunk
+	messages []domain.RAGChatMessage
+	task     domain.RAGTaskState
+}
 
 func (s *ragStoreStub) LoadKnowledgeChunks(context.Context, domain.ChunkStrategy) ([]domain.KnowledgeChunk, error) {
 	return s.chunks, nil
+}
+func (s *ragStoreStub) AppendRAGChatMessage(_ context.Context, _ string, message domain.RAGChatMessage) (domain.RAGChatMessage, error) {
+	message.Sequence = len(s.messages) + 1
+	s.messages = append(s.messages, message)
+	return message, nil
+}
+func (s *ragStoreStub) LoadRAGChat(context.Context, string) ([]domain.RAGChatMessage, error) {
+	return append([]domain.RAGChatMessage(nil), s.messages...), nil
+}
+func (s *ragStoreStub) LoadRAGTaskState(_ context.Context, sessionID string) (domain.RAGTaskState, bool, error) {
+	if s.task.SessionID == "" {
+		return domain.RAGTaskState{SessionID: sessionID, Constraints: []string{}, Terms: map[string]string{}}, false, nil
+	}
+	return s.task, true, nil
+}
+func (s *ragStoreStub) SaveRAGTaskState(_ context.Context, state domain.RAGTaskState) error {
+	s.task = state
+	return nil
+}
+func (s *ragStoreStub) ClearRAGChat(context.Context, string) error {
+	s.messages = nil
+	s.task = domain.RAGTaskState{}
+	return nil
 }
 
 type ragIndexerStub struct{}
@@ -111,5 +138,32 @@ func TestGroundedAnswerDoesNotCallAnswerModelBelowThreshold(t *testing.T) {
 	}
 	if len(model.prompts) != 1 {
 		t.Fatalf("only query rewrite may run, answer model calls=%d", len(model.prompts))
+	}
+}
+
+func TestRAGChatPersistsHistoryAndTaskMemory(t *testing.T) {
+	content := "Caddy keeps API secrets on the server and proxies requests to the backend."
+	store := &ragStoreStub{chunks: []domain.KnowledgeChunk{{ID: "caddy", Strategy: domain.ChunkStrategyStructural, Source: "deploy/Caddyfile", Content: content, Vector: embedText(content), Dimensions: 256}}}
+	model := &ragModelStub{}
+	service := NewRAGService(store, ragIndexerStub{}, model, 500)
+	if _, err := service.Chat(context.Background(), "demo-session", "Подготовь релиз. Бюджет должен быть без новых сервисов."); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.Chat(context.Background(), "demo-session", "Термин evidence gate означает честный отказ при слабом контексте."); err != nil {
+		t.Fatal(err)
+	}
+	state, err := service.ChatState(context.Background(), "demo-session")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(state.Messages) != 4 || state.Task.Goal == "" || len(state.Task.Constraints) == 0 || state.Task.Terms["Термин evidence gate"] == "" {
+		t.Fatalf("state was not persisted: %#v", state)
+	}
+	if err := service.ClearChat(context.Background(), "demo-session"); err != nil {
+		t.Fatal(err)
+	}
+	state, _ = service.ChatState(context.Background(), "demo-session")
+	if len(state.Messages) != 0 {
+		t.Fatal("chat was not cleared")
 	}
 }

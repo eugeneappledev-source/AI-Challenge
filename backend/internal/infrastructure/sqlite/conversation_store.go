@@ -145,6 +145,23 @@ func (s *ConversationStore) migrate(ctx context.Context) error {
 			created_at TEXT NOT NULL
 		);
 		CREATE INDEX IF NOT EXISTS idx_rag_chunks_strategy_source ON rag_chunks(strategy, source);
+		CREATE TABLE IF NOT EXISTS rag_chat_messages (
+			sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+			session_id TEXT NOT NULL,
+			role TEXT NOT NULL,
+			content TEXT NOT NULL,
+			citations_json TEXT NOT NULL,
+			usage_json TEXT NOT NULL,
+			created_at TEXT NOT NULL
+		);
+		CREATE INDEX IF NOT EXISTS idx_rag_chat_session ON rag_chat_messages(session_id, sequence);
+		CREATE TABLE IF NOT EXISTS rag_task_states (
+			session_id TEXT PRIMARY KEY,
+			goal TEXT NOT NULL,
+			constraints_json TEXT NOT NULL,
+			terms_json TEXT NOT NULL,
+			updated_at TEXT NOT NULL
+		);
 	`)
 	if err != nil {
 		return fmt.Errorf("migrate agent database: %w", err)
