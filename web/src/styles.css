@@ -1146,6 +1146,7 @@ footer {
 .radar-days { display:flex; gap:4px; padding:4px; border:1px solid rgba(23,39,31,.13); border-radius:999px; background:rgba(255,255,255,.45); }
 .radar-days a { color:#68736d; text-decoration:none; padding:8px 13px; border-radius:999px; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.08em; }
 .radar-days a.active { background:#173f2d; color:#fff; }
+.radar-days a.radar-next-days { background:#6d53ea; color:#fff; }
 .radar-github { color:#173f2d; text-decoration:none; font-size:11px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
 .radar-hero { width:min(1180px,calc(100% - 40px)); margin:auto; padding:88px 0 76px; display:grid; grid-template-columns:minmax(0,1.5fr) minmax(280px,.5fr); gap:64px; align-items:end; }
 .radar-kicker,.radar-heading span,.radar-tools header span { margin:0 0 18px; color:#e45a35; font-size:11px; font-weight:900; letter-spacing:.14em; text-transform:uppercase; }

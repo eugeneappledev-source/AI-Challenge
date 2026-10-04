@@ -47,6 +47,7 @@ function MCPConnectionLab() {
           {[16, 17, 18, 19, 20].map((number) => (
             <a key={number} className={number === 16 ? "active" : ""} href={`#day-${number}`}>День {number}</a>
           ))}
+          <a className="radar-next-days" href="#day-21">21–25 →</a>
         </div>
         <a className="radar-github" href="https://github.com/eugeneappledev-source/AI-Challenge" target="_blank" rel="noreferrer">GitHub ↗</a>
       </nav>

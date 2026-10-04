@@ -95,7 +95,7 @@ function BusinessResearchLab() {
 }
 
 export function RadarNav({ active }: { active: number }) {
-  return <nav className="radar-nav" aria-label="Навигация Startup Radar"><a className="radar-brand" href="#day-16"><span>SR</span> Startup Radar</a><div className="radar-days">{[16,17,18,19,20].map((number) => <a key={number} className={active === number ? "active" : ""} href={`#day-${number}`}>День {number}</a>)}</div><a className="radar-github" href="https://github.com/eugeneappledev-source/AI-Challenge" target="_blank" rel="noreferrer">GitHub ↗</a></nav>;
+  return <nav className="radar-nav" aria-label="Навигация Startup Radar"><a className="radar-brand" href="#day-16"><span>SR</span> Startup Radar</a><div className="radar-days">{[16,17,18,19,20].map((number) => <a key={number} className={active === number ? "active" : ""} href={`#day-${number}`}>День {number}</a>)}<a className="radar-next-days" href="#day-21">21–25 →</a></div><a className="radar-github" href="https://github.com/eugeneappledev-source/AI-Challenge" target="_blank" rel="noreferrer">GitHub ↗</a></nav>;
 }
 
 export default BusinessResearchLab;

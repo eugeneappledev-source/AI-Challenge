@@ -410,5 +410,5 @@ function readActiveDay(): ActiveDay {
   if (["#day-16", "#day-17", "#day-18", "#day-19", "#day-20", "#day-21", "#day-22", "#day-23", "#day-24", "#day-25"].includes(window.location.hash)) {
     return window.location.hash.slice(1) as ActiveDay;
   }
-  return "day-16";
+  return "day-21";
 }
