@@ -83,3 +83,26 @@ func (s *ConversationStore) KnowledgeIndexStatus(ctx context.Context, corpusPath
 	status.PagesEquivalent = totalChars / 1800
 	return status, nil
 }
+
+func (s *ConversationStore) LoadKnowledgeChunks(ctx context.Context, strategy domain.ChunkStrategy) ([]domain.KnowledgeChunk, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT chunk_id,source,title,section_name,content,vector_json,dimensions,char_count,created_at FROM rag_chunks WHERE strategy=? ORDER BY source,chunk_id`, strategy)
+	if err != nil {
+		return nil, fmt.Errorf("load knowledge chunks: %w", err)
+	}
+	defer rows.Close()
+	chunks := []domain.KnowledgeChunk{}
+	for rows.Next() {
+		var chunk domain.KnowledgeChunk
+		var vectorJSON, created string
+		chunk.Strategy = strategy
+		if err := rows.Scan(&chunk.ID, &chunk.Source, &chunk.Title, &chunk.Section, &chunk.Content, &vectorJSON, &chunk.Dimensions, &chunk.CharCount, &created); err != nil {
+			return nil, fmt.Errorf("scan knowledge chunk: %w", err)
+		}
+		if err := json.Unmarshal([]byte(vectorJSON), &chunk.Vector); err != nil {
+			return nil, fmt.Errorf("decode knowledge vector: %w", err)
+		}
+		chunk.CreatedAt, _ = time.Parse(time.RFC3339Nano, created)
+		chunks = append(chunks, chunk)
+	}
+	return chunks, rows.Err()
+}

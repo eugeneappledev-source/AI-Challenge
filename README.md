@@ -36,6 +36,7 @@
 | 4 | [19](challenges/day-19/README.md) | Цепочка MCP-инструментов | Agent plan, три tool-вызова и структурированный handoff | ✅ |
 | 4 | [20](challenges/day-20/README.md) | Несколько MCP-серверов | Research + Advisor, проверяемый routing и единый результат | ✅ |
 | 5 | [21](challenges/day-21/README.md) | Индексация документов | Две стратегии chunking, embeddings и локальный индекс | ✅ |
+| 5 | [22](challenges/day-22/README.md) | Первый RAG | Сравнение без контекста и с retrieved chunks | ✅ |
 
 Подробная навигация по выполненным заданиям находится в [дневнике челленджа](challenges/README.md).
 
@@ -105,7 +106,8 @@ AI-Challenge/
 │   ├── day-18/                  # cron, фоновый агент и persistence
 │   ├── day-19/                  # цепочка tools и data handoff
 │   ├── day-20/                  # multi-server orchestration
-│   └── day-21/                  # chunking, embeddings и локальный индекс
+│   ├── day-21/                  # chunking, embeddings и локальный индекс
+│   └── day-22/                  # вопрос, retrieval, контекст и LLM
 └── .github/workflows/           # автоматические проверки
 ```
 
@@ -174,3 +176,4 @@ AI-Challenge/
 - [`day-19`](https://github.com/eugeneappledev-source/AI-Challenge/tree/day-19) — автоматическая цепочка из трёх MCP-инструментов с передачей результата.
 - [`day-20`](https://github.com/eugeneappledev-source/AI-Challenge/tree/day-20) — оркестрация Research и Advisor MCP-серверов с проверяемым routing.
 - [`day-21`](https://github.com/eugeneappledev-source/AI-Challenge/tree/day-21) — две стратегии chunking, локальные embeddings и SQLite-индекс с метаданными.
+- [`day-22`](https://github.com/eugeneappledev-source/AI-Challenge/tree/day-22) — первый RAG-пайплайн, A/B-ответы и 10 контрольных вопросов.

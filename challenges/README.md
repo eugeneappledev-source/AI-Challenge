@@ -47,6 +47,7 @@
 | День | Фокус | Реализация | Результат |
 |:---:|---|---|:---:|
 | [21](day-21/README.md) | Индексация документов | Fixed/structural chunking, локальные embeddings и SQLite | ✅ |
+| [22](day-22/README.md) | Первый RAG | A/B без контекста и с retrieved chunks, 10 вопросов | ✅ |
 
 ## Как читать дневник
 

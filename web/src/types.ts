@@ -399,3 +399,28 @@ export interface KnowledgeIndexStatus {
     samples: KnowledgeChunk[];
   }>;
 }
+
+export interface RetrievedChunk {
+  chunk: KnowledgeChunk;
+  similarityScore: number;
+}
+
+export interface RAGAnswer {
+  answer: string;
+  model: string;
+  durationMs: number;
+  usage: Usage;
+}
+
+export interface RAGComparison {
+  question: string;
+  withoutRag: RAGAnswer;
+  withRag: RAGAnswer;
+  retrieved: RetrievedChunk[];
+}
+
+export interface ControlQuestion {
+  id: string;
+  question: string;
+  expectedSources: string[];
+}

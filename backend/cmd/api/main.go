@@ -62,10 +62,11 @@ func main() {
 	businessPipelineService := application.NewBusinessPipelineService(llmClient, cfg.MCPResearchURL)
 	businessNetworkService := application.NewBusinessNetworkService(llmClient, cfg.MCPResearchURL, cfg.MCPAdvisorURL)
 	knowledgeIndexService := application.NewKnowledgeIndexService(memoryStore, cfg.RAGCorpusPath)
+	ragService := application.NewRAGService(memoryStore, knowledgeIndexService, llmClient, cfg.MaxMessageRunes)
 	handler := httptransport.NewHandler(chatService, reasoningService, temperatureService, modelBenchmarkService, logger, cfg.AppAccessToken, httptransport.RateLimitConfig{
 		PerMinute: cfg.RateLimitPerMinute,
 		PerDay:    cfg.DailyRequestLimit,
-	}).WithAgentService(agentService).WithMCPConnectionService(mcpConnectionService).WithBusinessResearchService(businessResearchService).WithScheduledDigestService(scheduledDigestService).WithBusinessPipelineService(businessPipelineService).WithBusinessNetworkService(businessNetworkService).WithKnowledgeIndexService(knowledgeIndexService)
+	}).WithAgentService(agentService).WithMCPConnectionService(mcpConnectionService).WithBusinessResearchService(businessResearchService).WithScheduledDigestService(scheduledDigestService).WithBusinessPipelineService(businessPipelineService).WithBusinessNetworkService(businessNetworkService).WithKnowledgeIndexService(knowledgeIndexService).WithRAGService(ragService)
 	rootHandler := http.NewServeMux()
 	rootHandler.Handle("/mcp/research", mcpserver.StreamableHandler(researchMCP))
 	rootHandler.Handle("/mcp/advisor", mcpserver.StreamableHandler(advisorMCP))

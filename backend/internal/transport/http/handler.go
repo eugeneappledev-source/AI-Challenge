@@ -63,6 +63,11 @@ type KnowledgeIndexService interface {
 	Build(context.Context) (domain.KnowledgeIndexStatus, error)
 }
 
+type RAGService interface {
+	Compare(context.Context, string) (domain.RAGComparison, error)
+	ControlQuestions() []domain.ControlQuestion
+}
+
 type AgentService interface {
 	Profile() domain.AgentProfile
 	Respond(ctx context.Context, input string) (domain.AgentExchange, error)
@@ -106,6 +111,7 @@ type Handler struct {
 	businessPipelineService BusinessPipelineService
 	businessNetworkService  BusinessNetworkService
 	knowledgeIndexService   KnowledgeIndexService
+	ragService              RAGService
 	logger                  *slog.Logger
 	appAccessToken          string
 	rateLimiter             *rateLimiter
@@ -143,6 +149,11 @@ func (h *Handler) WithBusinessNetworkService(service BusinessNetworkService) *Ha
 
 func (h *Handler) WithKnowledgeIndexService(service KnowledgeIndexService) *Handler {
 	h.knowledgeIndexService = service
+	return h
+}
+
+func (h *Handler) WithRAGService(service RAGService) *Handler {
+	h.ragService = service
 	return h
 }
 
@@ -229,7 +240,36 @@ func (h *Handler) Routes() http.Handler {
 		mux.Handle("GET /v1/knowledge/index", h.requireAccessToken(http.HandlerFunc(h.knowledgeIndexStatus)))
 		mux.Handle("POST /v1/knowledge/index", h.requireAccessToken(http.HandlerFunc(h.buildKnowledgeIndex)))
 	}
+	if h.ragService != nil {
+		mux.Handle("GET /v1/knowledge/questions", h.requireAccessToken(http.HandlerFunc(h.ragControlQuestions)))
+		mux.Handle("POST /v1/knowledge/compare", h.requireAccessToken(h.limitRequests(http.HandlerFunc(h.compareRAG))))
+	}
 	return h.logging(h.recoverPanic(mux))
+}
+
+func (h *Handler) ragControlQuestions(response http.ResponseWriter, _ *http.Request) {
+	writeJSON(response, http.StatusOK, h.ragService.ControlQuestions())
+}
+
+func (h *Handler) compareRAG(response http.ResponseWriter, request *http.Request) {
+	var payload struct {
+		Question string `json:"question"`
+	}
+	if err := decodeRequestJSON(response, request, &payload); err != nil {
+		writeAPIError(response, http.StatusBadRequest, "invalid_request", "Question is required.")
+		return
+	}
+	result, err := h.ragService.Compare(request.Context(), payload.Question)
+	if err != nil {
+		status, code, message := http.StatusBadGateway, "rag_error", "The knowledge assistant is temporarily unavailable."
+		if errors.Is(err, application.ErrEmptyRAGQuestion) || errors.Is(err, application.ErrRAGQuestionTooLong) {
+			status, code, message = http.StatusBadRequest, "invalid_question", err.Error()
+		}
+		h.logger.Error("RAG comparison failed", "error", err)
+		writeAPIError(response, status, code, message)
+		return
+	}
+	writeJSON(response, http.StatusOK, result)
 }
 
 func (h *Handler) knowledgeIndexStatus(response http.ResponseWriter, request *http.Request) {

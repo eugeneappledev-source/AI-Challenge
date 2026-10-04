@@ -25,6 +25,8 @@ import type {
   FounderProfile,
   MultiServerResult,
   KnowledgeIndexStatus,
+  RAGComparison,
+  ControlQuestion,
 } from "./types";
 
 interface APIErrorPayload {
@@ -333,4 +335,17 @@ export async function loadKnowledgeIndex(signal?: AbortSignal): Promise<Knowledg
 
 export async function buildKnowledgeIndex(signal?: AbortSignal): Promise<KnowledgeIndexStatus> {
   return requestJSON<KnowledgeIndexStatus>("/web-api/knowledge/index", { method: "POST", signal });
+}
+
+export async function loadControlQuestions(signal?: AbortSignal): Promise<ControlQuestion[]> {
+  return requestJSON<ControlQuestion[]>("/web-api/knowledge/questions", { signal });
+}
+
+export async function compareRAG(question: string, signal?: AbortSignal): Promise<RAGComparison> {
+  return requestJSON<RAGComparison>("/web-api/knowledge/compare", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ question }),
+    signal,
+  });
 }
